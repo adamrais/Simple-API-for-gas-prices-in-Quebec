@@ -70,6 +70,7 @@ html = f"""<!DOCTYPE html>
       <a href="aujourd-hui.html"><button>Prix aujourd'hui</button></a>
     </div>
     <h1 id="titre-principal">Données historiques</h1>
+    {moyenne_html}
     <table style="border-collapse: collapse; width: 100%;">
       <tr>
         <th style="padding: 8px; border: 1px solid #444;">Date</th>
@@ -77,7 +78,6 @@ html = f"""<!DOCTYPE html>
       </tr>
       {rows}
     </table>
-    {moyenne_html}
   </body>
 </html>"""
 
