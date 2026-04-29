@@ -1,0 +1,36 @@
+name: Mise à jour quotidienne des prix
+
+on:
+  schedule:
+    - cron: '0 14 * * *'  # 10h00 heure de Montréal (UTC-4)
+  workflow_dispatch:       # permet de lancer manuellement depuis GitHub
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du repo
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer les dépendances
+        run: pip install requests pandas
+
+      - name: Fetch le prix du jour
+        run: python Simple-API-for-gas-prices-in-Quebec/scripts/daily_price.py
+
+      - name: Générer historique.html
+        run: python "Site Essence/generer_historique.py"
+
+      - name: Commit et push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Simple-API-for-gas-prices-in-Quebec/data/prix_quotidien.csv "Site Essence/historique.html"
+          git diff --cached --quiet || git commit -m "Prix du $(date +'%Y-%m-%d') mis à jour"
+          git push

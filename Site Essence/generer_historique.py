@@ -18,7 +18,7 @@ for ligne in lignes:
 moyenne = round(sum(prix_semaine) / len(prix_semaine), 1) if prix_semaine else None
 
 rows = ""
-for ligne in lignes:
+for ligne in lignes[-10:]:
     rows += f"""
         <tr>
           <td style="padding: 8px; border: 1px solid #444;">{ligne['date']}</td>
