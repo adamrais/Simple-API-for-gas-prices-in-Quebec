@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <title>Prediction</title>
+    <style>
+      body {
+        background-color: #0f0f0f;
+        color: #e0e0e0;
+        font-family: sans-serif;
+        padding: 20px;
+      }
+      #titre-principal {
+        color: #4caf7d;
+        font-family: Georgia, serif;
+      }
+      #nav button {
+        background-color: transparent;
+        color: #4caf7d;
+        border: 1px solid #4caf7d;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 15px;
+        cursor: pointer;
+      }
+
+      #nav button:hover {
+        background-color: #4caf7d;
+        color: #0f0f0f;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="titre-principal">Prédiction</h1>
+    <div id="nav">
+      <a href="index.html"><button>Page d'accueil</button></a>
+    </div>
+    <div id="predictions"></div>
+    <div style="display: flex; gap: 20px; align-items: flex-start;">
+      <canvas id="graphique" width="700" height="400"></canvas>
+      <div id="Tableau" style="color: white; min-width: 300px;"></div>
+    </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+fetch("http://127.0.0.1:8000/predict/futur?jours=7")
+  .then(r => r.json())
+  .then(data => {
+    const preds = data.predictions;
+    const labels = preds.map(p => p.date);
+    const moyen = preds.map(p => p.moyen);
+    const optimiste = preds.map(p => p.optimiste);
+    const pessimiste = preds.map(p => p.pessimiste);
+
+    new Chart(document.getElementById("graphique"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          { label: "Pessimiste", data: pessimiste, borderColor: "#e74c3c", borderDash: [5,4], borderWidth: 1.5, pointRadius: 0, fill: false },
+          { label: "Moyen", data: moyen, borderColor: "#4caf7d", borderWidth: 2, pointRadius: 4, pointBackgroundColor: "#4caf7d", fill: false },
+          { label: "Optimiste", data: optimiste, borderColor: "#3498db", borderDash: [5,4], borderWidth: 1.5, pointRadius: 0, fill: false }
+        ]
+      },
+      options: {
+        responsive: false,
+        plugins: { legend: { display: true } },
+        scales: { y: { ticks: { callback: v => v + "¢" } } }
+      }
+    });
+
+    const div = document.getElementById("Tableau");
+    let html = `<table style="border-collapse: collapse; width: 100%;">
+      <tr>
+        <th style="padding: 8px; border: 1px solid #444;">Date</th>
+        <th style="padding: 8px; border: 1px solid #444; color: #3498db;">Optimiste</th>
+        <th style="padding: 8px; border: 1px solid #444; color: #4caf7d;">Moyen</th>
+        <th style="padding: 8px; border: 1px solid #444; color: #e74c3c;">Pessimiste</th>
+      </tr>`;
+    preds.forEach(p => {
+      html += `<tr>
+        <td style="padding: 8px; border: 1px solid #444;">${p.date}</td>
+        <td style="padding: 8px; border: 1px solid #444; color: #3498db;">${p.optimiste}¢</td>
+        <td style="padding: 8px; border: 1px solid #444; color: #4caf7d;">${p.moyen}¢</td>
+        <td style="padding: 8px; border: 1px solid #444; color: #e74c3c;">${p.pessimiste}¢</td>
+      </tr>`;
+    });
+    html += `</table>`;
+    div.innerHTML = html;
+  });
+</script>
+</body>
+</html>
