@@ -1,44 +1,92 @@
-import pickle
-import numpy as np
+import pandas as pd
+import requests
+import os
 from datetime import date, timedelta
-from app.config import MODEL_PATH, MODEL_AR_PATH, LAST_KNOWN_PATH
 
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
+def get_wti_realtime():
+    try:
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=1d"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers)
+        data = r.json()
+        prix = data["chart"]["result"][0]["meta"]["regularMarketPrice"]
+        return float(prix)
+    except Exception as e:
+        print(f"Erreur WTI realtime: {e}")
+        return None
+def get_usdcad_realtime():
+    try:
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/USDCAD=X?interval=1d&range=1d"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers)
+        data = r.json()
+        prix = data["chart"]["result"][0]["meta"]["regularMarketPrice"]
+        return float(prix)
+    except Exception as e:
+        print(f"Erreur USDCAD realtime: {e}")
+        return None
 
-with open(MODEL_AR_PATH, "rb") as f:
-    model_ar = pickle.load(f)
+def get_tendance_wti():
+    try:
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=5d"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers)
+        closes = r.json()["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+        closes = [x for x in closes if x is not None]
+        tendance = (closes[-1] - closes[0]) / len(closes)
+        return round(tendance, 4)
+    except Exception as e:
+        print(f"Erreur tendance WTI: {e}")
+        return 0.0
 
-with open(LAST_KNOWN_PATH, "rb") as f:
-    last_known = pickle.load(f)
+def get_tendance_usdcad():
+    try:
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/USDCAD=X?interval=1d&range=5d"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers)
+        closes = r.json()["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+        closes = [x for x in closes if x is not None]
+        tendance = (closes[-1] - closes[0]) / len(closes)
+        return round(tendance, 6)
+    except:
+        return 0.0
 
+def get_tendance_prix():
+    try:
+        CSV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "prix_quotidien.csv")
+        df = pd.read_csv(CSV_PATH)
+        print(f"CSV chargé: {len(df)} lignes, dernières valeurs: {df['prix_pompe'].iloc[-10:].values}") 
+        df = df.sort_values("date").reset_index(drop=True)
+        derniers = df["prix_pompe"].iloc[-5:].values
+        tendance_historique = (derniers[-1] - derniers[0]) / len(derniers)
 
-def predict_today(c, saison, wti_lag1, wti_lag2, c_lag1):
-    x = np.array([[c, saison, wti_lag1, wti_lag2, c_lag1]])
-    return model.predict(x)[0]
+        tendance_wti = get_tendance_wti()
+        tendance_usdcad = get_tendance_usdcad()
+        wti = get_wti_realtime()
+        usdcad = get_usdcad_realtime()
+        tendance_marche = (tendance_wti * usdcad + wti * tendance_usdcad) / 158.987
 
-
+        tendance_finale = 0.6 * tendance_historique + 0.4 * tendance_marche
+        print(f"Tendance historique: {tendance_historique}, marché: {tendance_marche}, finale: {tendance_finale}")
+        return round(tendance_finale, 2)
+    except Exception as e:
+        print(f"Erreur tendance prix: {e}")
+        return 0.0
+    
 def predict_future(prix_aujourdhui, jours):
-    N_LAGS = 4
-    window = list(last_known[1:]) + [prix_aujourdhui]
     resultats = []
-
+    tendance_essence = get_tendance_prix()
+    
     for j in range(1, jours + 1):
-        x_ar = np.array([window[-1], window[-2], window[-3], window[-4]]).reshape(1, -1)
-        preds = np.array([arbre.predict(x_ar)[0] for arbre in model_ar.estimators_])
-        moy  = round(float(np.percentile(preds, 50)), 2)
-        opt  = round(float(np.percentile(preds, 95)), 2)
-        pess = round(float(np.percentile(preds, 5)),  2)
-
+        moy = round(prix_aujourdhui + (tendance_essence * j), 2)
+        
+        delta = round(1.0 + (j * 0.3), 2)
+        
         resultats.append({
             "date": str(date.today() + timedelta(days=j)),
-            "optimiste": pess,
+            "optimiste": round(moy - delta, 2),
+            "pessimiste": round(moy + delta, 2),
             "moyen": moy,
-            "pessimiste": opt,
         })
-
-        window.append(moy)
-        if len(window) > N_LAGS:
-            window = window[-N_LAGS:]
-
+    
     return resultats
