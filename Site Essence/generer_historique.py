@@ -1,7 +1,10 @@
 import csv
+import os
 from datetime import date, datetime
 
-with open("Simple-API-for-gas-prices-in-Quebec/data/prix_quotidien.csv", encoding="utf-8") as f:
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+with open(os.path.join(BASE_DIR, "data", "prix_quotidien.csv"), encoding="utf-8") as f:
     lignes = list(csv.DictReader(f))
 
 aujourd_hui = date.today()
@@ -18,7 +21,7 @@ for ligne in lignes:
 moyenne = round(sum(prix_semaine) / len(prix_semaine), 1) if prix_semaine else None
 
 rows = ""
-for ligne in lignes[-10:]:
+for ligne in lignes[-7:]:
     rows += f"""
         <tr>
           <td style="padding: 8px; border: 1px solid #444;">{ligne['date']}</td>
@@ -81,7 +84,7 @@ html = f"""<!DOCTYPE html>
   </body>
 </html>"""
 
-with open("Site Essence/historique.html", "w", encoding="utf-8") as f:
+with open(os.path.join(BASE_DIR, "Site Essence", "historique.html"), "w", encoding="utf-8") as f:
     f.write(html)
 
 print("historique.html mis à jour !")
