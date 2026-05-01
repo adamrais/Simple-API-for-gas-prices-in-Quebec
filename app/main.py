@@ -8,7 +8,7 @@ app = FastAPI(title="API Prix Pompe")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://rayanrais234-eng.github.io"],
+    allow_origins=["*"],
     allow_methods=["GET"],
     allow_headers=["*"],
 )
