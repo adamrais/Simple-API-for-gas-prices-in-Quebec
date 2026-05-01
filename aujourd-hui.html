@@ -69,6 +69,7 @@
       <p id="baril" style="font-size: 18px; margin: 5px 0;">Chargement...</p>
       <p id="date" style="font-size: 14px; color: gray;margin: 5px 0;">Chargement...</p>
     </div>
+      <h2 id="tendance" style="font-size: 28px;">Chargement...</h2>
     <script>
     fetch("https://simple-api-for-gas-prices-in-quebec.onrender.com/predict")
     .then(reponse => reponse.json())
@@ -87,7 +88,6 @@
         }
     })
     </script>
-    <h2 id="tendance" style="font-size: 28px;">Chargement...</h2>
     </main>
     <footer style="background-color: #003DA5; color: white; padding: 20px 40px; text-align: center;">
       <a href="index.html" style="color: white; text-decoration: none; margin: 0 15px;">Accueil</a>
