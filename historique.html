@@ -126,7 +126,7 @@
     <script>
       async function chercher() {
         const date = document.getElementById("date-input").value;
-        const res = await fetch(`http://localhost:8000/prix?date=${date}`);
+        const res = await fetch(`https://simple-api-for-gas-prices-in-quebec.onrender.com/prix?date=${date}`);
         if (res.ok) {
           const data = await res.json();
           document.getElementById("resultat").textContent = `Prix le ${date} : ${data.prix} ¢/L`;

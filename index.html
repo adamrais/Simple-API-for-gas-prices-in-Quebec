@@ -88,7 +88,7 @@
     </div>
 
       <script>
-      fetch("http://127.0.0.1:8000/regions")
+      fetch("https://simple-api-for-gas-prices-in-quebec.onrender.com/regions")
         .then(r => r.json())
         .then(data => {
           const select = document.getElementById("region-select");
