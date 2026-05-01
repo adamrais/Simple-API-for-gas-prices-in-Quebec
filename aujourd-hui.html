@@ -70,7 +70,7 @@
       <p id="date" style="font-size: 14px; color: gray;margin: 5px 0;">Chargement...</p>
     </div>
     <script>
-    fetch("http://127.0.0.1:8000/predict")
+    fetch("https://simple-api-for-gas-prices-in-quebec.onrender.com/predict")
     .then(reponse => reponse.json())
     .then(data => {
       document.getElementById("prix").textContent = data.prix_predit_cents + " ¢/L";
