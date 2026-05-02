@@ -64,8 +64,11 @@ def get_prix_regie():
         return None
 
 def get_tendance():
-    prix_list = [float(l["prix_pompe"]) for l in lignes]
+    with open(CSV_PATH, encoding="utf-8") as f:
+        lignes_fresh = list(csv.DictReader(f))
     
+    prix_list = [float(l["prix_pompe"]) for l in lignes_fresh]
+
     if len(prix_list) < 2:
         tendance = "pas assez de données pour déterminer la tendance"
 
