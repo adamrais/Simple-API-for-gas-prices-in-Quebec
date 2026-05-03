@@ -55,7 +55,7 @@ def get_tendance_prix():
     try:
         CSV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "prix_quotidien.csv")
         df = pd.read_csv(CSV_PATH)
-        print(f"CSV chargé: {len(df)} lignes, dernières valeurs: {df['prix_pompe'].iloc[-10:].values}") 
+        print(f"CSV chargé: {len(df)} lignes, dernières valeurs: {df['prix_pompe'].iloc[-5:].values}") 
         df = df.sort_values("date").reset_index(drop=True)
         derniers = df["prix_pompe"].iloc[-5:].values
         tendance_historique = (derniers[-1] - derniers[0]) / len(derniers)
