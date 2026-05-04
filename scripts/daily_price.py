@@ -1,38 +1,11 @@
-import requests
-import json
-import gzip
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pandas as pd
 from datetime import date
-import os
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV_PATH = os.path.join(BASE_DIR, "data", "prix_quotidien.csv")
-
-def get_prix_regie():
-    try:
-        url = "https://regieessencequebec.ca/stations.geojson.gz"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Referer": "https://regieessencequebec.ca/"
-        }
-        r = requests.get(url, headers=headers)
-        try:
-            data = json.loads(gzip.decompress(r.content))
-        except:
-            data = json.loads(r.content)
-        prix = []
-        for feature in data["features"]:
-            prices = feature["properties"].get("Prices", [])
-            for p in prices:
-                if p.get("GasType") == "Régulier" and p.get("IsAvailable"):
-                    prix_str = p["Price"].replace("¢", "")
-                    prix.append(float(prix_str))
-        return round(sum(prix) / len(prix), 1)
-    except Exception as e:
-        print(f"Erreur Régie: {e}")
-        return None
+from app.services.regie import get_prix_regie
+from app.config import CSV_PATH
 
 prix = get_prix_regie()
 if prix:

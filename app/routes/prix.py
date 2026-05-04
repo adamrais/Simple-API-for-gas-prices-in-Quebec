@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from app.services.get_price import get_prix
+from app.services.csv_service import get_prix
 
 router = APIRouter()
+
 
 @router.get("/prix")
 def prix_par_date(date: str):

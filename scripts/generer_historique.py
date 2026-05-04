@@ -2,7 +2,7 @@ import csv
 import os
 from datetime import date, datetime
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 with open(os.path.join(BASE_DIR, "data", "prix_quotidien.csv"), encoding="utf-8") as f:
     lignes = list(csv.DictReader(f))
@@ -155,7 +155,7 @@ html = f"""<!DOCTYPE html>
   </body>
 </html>"""
 
-with open(os.path.join(BASE_DIR,"historique.html"), "w", encoding="utf-8") as f:
+with open(os.path.join(BASE_DIR, "templates", "historique.html"), "w", encoding="utf-8") as f:
     f.write(html)
 
 print("historique.html mis à jour !")

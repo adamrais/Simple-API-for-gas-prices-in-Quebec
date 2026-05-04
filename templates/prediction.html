@@ -77,7 +77,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-fetch("https://simple-api-for-gas-prices-in-quebec.onrender.com/predict/futur?jours=7")
+fetch("/predict/futur?jours=7")
   .then(r => r.json())
   .then(data => {
     const preds = data.predictions;
