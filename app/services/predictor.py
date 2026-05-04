@@ -66,7 +66,7 @@ def get_tendance_prix():
         usdcad = get_usdcad_realtime()
         tendance_marche = (tendance_wti * usdcad + wti * tendance_usdcad) / 158.987
 
-        tendance_finale = 0.6 * tendance_historique + 0.4 * tendance_marche
+        tendance_finale = 0.3 * tendance_historique + 0.7 * tendance_marche
         print(f"Tendance historique: {tendance_historique}, marché: {tendance_marche}, finale: {tendance_finale}")
         return round(tendance_finale, 2)
     except Exception as e:
