@@ -3,7 +3,7 @@ import requests
 
 def _fetch_yahoo(symbol, range_="1d"):
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range={range_}"
-    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
     return r.json()
 
 

@@ -13,7 +13,7 @@ _REGIE_HEADERS = {
 
 
 def _fetch_stations():
-    r = requests.get(_REGIE_URL, headers=_REGIE_HEADERS)
+    r = requests.get(_REGIE_URL, headers=_REGIE_HEADERS, timeout=10)
     try:
         return json.loads(gzip.decompress(r.content))
     except Exception:
