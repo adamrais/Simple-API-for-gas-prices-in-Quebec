@@ -81,7 +81,7 @@
     </div>
       <h2 id="tendance" style="font-size: 28px;">Chargement...</h2>
     <script>
-    fetch("/predict")
+    fetch("https://proessence.up.railway.app/predict")
     .then(reponse => reponse.json())
     .then(data => {
       document.getElementById("prix").textContent = data.prix_predit_cents + " ¢/L";

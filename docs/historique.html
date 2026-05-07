@@ -127,7 +127,7 @@
     <script>
       async function chercher() {
         const date = document.getElementById("date-input").value;
-        const res = await fetch(`/prix?date=${date}`);
+        const res = await fetch(`https://proessence.up.railway.app/prix?date=${date}`);
         if (res.ok) {
           const data = await res.json();
           document.getElementById("resultat").textContent = `Prix le ${date} : ${data.prix} ¢/L`;
