@@ -1,10 +1,15 @@
 import csv
 from datetime import date
-from app.config import CSV_PATH
+from app.config import CSV_PATH, CSV_REGIONS_PATH
 
 
 def load_prix():
     with open(CSV_PATH, encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def load_prix_regions():
+    with open(CSV_REGIONS_PATH, encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -36,3 +41,17 @@ def get_tendance():
 def get_historique(date_debut: date):
     today = date.today()
     return [l for l in load_prix() if date_debut <= date.fromisoformat(l["date"]) <= today]
+
+
+def get_historique_region(region: str, date_debut: date):
+    today = date.today()
+    return [
+        {"date": l["date"], "prix": float(l["prix"])}
+        for l in load_prix_regions()
+        if l["region"] == region and date_debut <= date.fromisoformat(l["date"]) <= today
+    ]
+
+
+def get_regions():
+    lignes = load_prix_regions()
+    return sorted({l["region"] for l in lignes})
