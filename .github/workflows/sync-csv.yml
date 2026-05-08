@@ -1,0 +1,23 @@
+name: Sync CSV from Railway
+
+on:
+  schedule:
+    - cron: '30 15 * * *'  # 11:30 AM Montreal time (after daily fetch at 10:00)
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download CSV from Railway
+        run: curl -f https://proessence.up.railway.app/prix/csv -o data/prix_quotidien.csv
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/prix_quotidien.csv
+          git diff --cached --quiet || git commit -m "chore: sync daily CSV backup"
+          git push
