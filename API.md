@@ -56,6 +56,19 @@ Retourne `404` si la date est introuvable.
 
 ---
 
+## GET `/prix/csv`
+
+Contenu complet du fichier CSV historique (format texte brut).
+
+```
+date,prix_pompe
+2026-04-21,179.3
+2026-04-22,180.4
+...
+```
+
+---
+
 ## GET `/regions`
 
 Prix moyen actuel par région administrative du Québec.
