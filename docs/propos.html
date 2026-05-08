@@ -19,7 +19,7 @@
 
     #titre-principal {
       color: #003DA5;
-      font-size: 120px;
+      font-size: clamp(40px, 14vw, 120px);
       font-weight: bold;
       text-align: center;
       margin: 0;
@@ -39,10 +39,23 @@
       font-size: 20px;
       font-family: 'Lucida Sans', sans-serif;
       cursor: pointer;
-      margin: 0 8px;
+      margin: 4px 8px;
       transition: background-color 0.2s, color 0.2s;
     }
     #nav button:hover { background-color: #003DA5; color: white; }
+    @media (max-width: 600px) {
+      #nav button {
+        font-size: 14px;
+        padding: 8px 14px;
+      }
+      footer {
+        padding: 16px 12px !important;
+      }
+      footer a {
+        display: inline-block;
+        line-height: 2;
+      }
+    }
 
     .section {
       margin-bottom: 40px;

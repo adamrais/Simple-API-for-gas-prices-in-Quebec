@@ -23,7 +23,7 @@
   }
   #titre-principal {
     color: #003DA5;
-    font-size: 120px;
+    font-size: clamp(40px, 14vw, 120px);
     font-weight: bold;
     text-align: center;
     margin: 0;
@@ -33,7 +33,7 @@
   }
   h2 {
     margin-top: 4px;
-    font-size: 36px;
+    font-size: clamp(18px, 5vw, 36px);
     text-align: center;
     color: gray;
   }
@@ -50,19 +50,32 @@
     font-size: 20px;
     font-family: 'Lucida Sans', sans-serif;
     cursor: pointer;
-    margin: 0 8px;
+    margin: 4px 8px;
     transition: background-color 0.2s, color 0.2s;
   }
   #nav button:hover {
     background-color: #003DA5;
     color: white;
   }
+  @media (max-width: 600px) {
+    #nav button {
+      font-size: 14px;
+      padding: 8px 14px;
+    }
+    footer {
+      padding: 16px 12px !important;
+    }
+    footer a {
+      display: inline-block;
+      line-height: 2;
+    }
+  }
 </style>
   </head>
   <body>
     <main>
-       <div style="display: flex; align-items: center; justify-content: center; gap: 20px; position: relative;">
-        <img src="static/logo.jpg" alt="logo" style="width: 150px; position: absolute; left: 200px;" />
+       <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
+        <img src="static/logo.jpg" alt="logo" style="width: 100px;" />
         <h1 id="titre-principal">ProEssence</h1>
       </div>
         <h2>Suivi des prix de l'essence au Québec</h2>
@@ -80,14 +93,14 @@
           </p>
           <div style="display: flex; justify-content: center; align-items: flex-start; gap: 40px; margin-top: 30px; flex-wrap: wrap;">
       
-      <img src="static/quebec.svg" style="width: 500px;" />
+      <img src="static/quebec.svg" style="width: 100%; max-width: 500px;" />
 
-      <div style="min-width: 250px;">
-        <h2 style="color: #003DA5; margin-bottom: 16px; margin-top: 160px; margin-left: 100px;">Prix selon la région</h2>
-        <select id="region-select" style="width: 100%; margin-left: 50px; padding: 10px; font-size: 16px; border: 2px solid #003DA5; border-radius: 8px; color: #003DA5; font-family: 'Lucida Sans', sans-serif;">
+      <div style="min-width: 250px; max-width: 340px; width: 100%;">
+        <h2 style="color: #003DA5; margin-bottom: 16px; margin-top: 20px;">Prix selon la région</h2>
+        <select id="region-select" style="width: 100%; padding: 10px; font-size: 16px; border: 2px solid #003DA5; border-radius: 8px; color: #003DA5; font-family: 'Lucida Sans', sans-serif;">
           <option value="">-- Choisir une région --</option>
         </select>
-        <div id="prix-region" style="margin-top: 20px; margin-left: 70px; font-size: 28px; font-weight: bold; color: #003DA5;"></div>
+        <div id="prix-region" style="margin-top: 20px; font-size: 28px; font-weight: bold; color: #003DA5;"></div>
       </div>
     </div>
       <script>

@@ -2,6 +2,7 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prédiction par région</title>
     <style>
       body {
@@ -17,7 +18,7 @@
       main { flex: 1; }
       #titre-principal {
         color: #003DA5;
-        font-size: 80px;
+        font-size: clamp(32px, 11vw, 80px);
         font-weight: bold;
         text-align: center;
         margin: 0;
@@ -38,7 +39,7 @@
         font-size: 20px;
         font-family: 'Lucida Sans', sans-serif;
         cursor: pointer;
-        margin: 0 8px;
+        margin: 4px 8px;
         transition: background-color 0.2s, color 0.2s;
       }
       #nav button:hover {
@@ -55,6 +56,24 @@
         font-family: 'Lucida Sans', sans-serif;
         cursor: pointer;
         outline: none;
+        max-width: 100%;
+      }
+      .chart-wrapper {
+        width: 100%;
+        max-width: 700px;
+      }
+      @media (max-width: 600px) {
+        #nav button {
+          font-size: 14px;
+          padding: 8px 14px;
+        }
+        footer {
+          padding: 16px 12px !important;
+        }
+        footer a {
+          display: inline-block;
+          line-height: 2;
+        }
       }
     </style>
   </head>
@@ -75,8 +94,8 @@
       </div>
 
       <div style="display: flex; justify-content: center; align-items: flex-start; gap: 40px; margin-top: 40px; flex-wrap: wrap;">
-        <canvas id="graphique" width="700" height="400"></canvas>
-        <div id="Tableau" style="color: black; min-width: 300px;"></div>
+        <div class="chart-wrapper"><canvas id="graphique"></canvas></div>
+        <div id="Tableau" style="color: black; min-width: 300px; width: 100%; max-width: 700px;"></div>
       </div>
     </main>
 
@@ -117,7 +136,8 @@
             ]
           },
           options: {
-            responsive: false,
+            responsive: true,
+            maintainAspectRatio: true,
             plugins: {
               legend: { display: true },
               tooltip: { mode: "index", intersect: false }

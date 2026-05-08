@@ -20,7 +20,7 @@
     }
     #titre-principal {
       color: #003DA5;
-      font-size: 120px;
+      font-size: clamp(32px, 12vw, 120px);
       font-weight: bold;
       text-align: center;
       margin: 0;
@@ -48,8 +48,8 @@
       font-size: 20px;
       font-family: 'Lucida Sans', sans-serif;
       cursor: pointer;
-      margin: 0 8px;
-      margin-bottom: 20px; 
+      margin: 4px 8px;
+      margin-bottom: 20px;
       transition: background-color 0.2s, color 0.2s;
   }
     #nav button:hover {
@@ -93,6 +93,27 @@
     .btn-page:disabled {
       opacity: 0.3;
       cursor: default;
+  }
+  @media (max-width: 600px) {
+    #nav button {
+      font-size: 14px;
+      padding: 8px 14px;
+    }
+    #pagination {
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn-page {
+      font-size: 14px;
+      padding: 8px 14px;
+    }
+    footer {
+      padding: 16px 12px !important;
+    }
+    footer a {
+      display: inline-block;
+      line-height: 2;
+    }
   }
     </style>
   </head>

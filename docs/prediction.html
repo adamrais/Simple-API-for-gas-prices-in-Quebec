@@ -2,6 +2,7 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prediction</title>
     <style>
       body {
@@ -20,7 +21,7 @@
 
   #titre-principal {
     color: #003DA5;
-    font-size: 120px;
+    font-size: clamp(40px, 14vw, 120px);
     font-weight: bold;
     text-align: center;
     margin: 0;
@@ -31,7 +32,7 @@
 
   h2 {
     margin-top: 4px;
-    font-size: 36px;
+    font-size: clamp(18px, 5vw, 36px);
     text-align: center;
     color: gray;
   }
@@ -50,13 +51,32 @@
     font-size: 20px;
     font-family: 'Lucida Sans', sans-serif;
     cursor: pointer;
-    margin: 0 8px;
+    margin: 4px 8px;
     transition: background-color 0.2s, color 0.2s;
   }
 
   #nav button:hover {
     background-color: #003DA5;
     color: white;
+  }
+
+  .chart-wrapper {
+    width: 100%;
+    max-width: 700px;
+  }
+
+  @media (max-width: 600px) {
+    #nav button {
+      font-size: 14px;
+      padding: 8px 14px;
+    }
+    footer {
+      padding: 16px 12px !important;
+    }
+    footer a {
+      display: inline-block;
+      line-height: 2;
+    }
   }
     </style>
   </head>
@@ -73,8 +93,8 @@
       </div>
 
       <div style="display: flex; justify-content: center; align-items: flex-start; gap: 40px; margin-top: 40px; flex-wrap: wrap;">
-        <canvas id="graphique" width="700" height="400"></canvas>
-      <div id="Tableau" style="color: black; min-width: 300px;"></div>
+        <div class="chart-wrapper"><canvas id="graphique"></canvas></div>
+      <div id="Tableau" style="color: black; min-width: 300px; width: 100%; max-width: 700px;"></div>
       </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -99,7 +119,8 @@ fetch("https://proessence.up.railway.app/predict/futur?jours=7")
     ]
   },
   options: {
-    responsive: false,
+    responsive: true,
+    maintainAspectRatio: true,
     plugins: {
       legend: { display: true },
       tooltip: { mode: "index", intersect: false }
