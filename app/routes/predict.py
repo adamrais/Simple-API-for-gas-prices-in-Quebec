@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 from datetime import date
-from app.services.regie import get_prix_regie
+from app.services.regie import get_prix_regie, get_prix_par_region
 from app.services.market import get_wti, get_usdcad
 from app.services.csv_service import get_tendance
-from app.services.predictor import predict_future
+from app.services.predictor import predict_future, predict_future_regions
 
 router = APIRouter()
 
@@ -31,3 +31,11 @@ def predict_futur(jours: int = 7):
     if prix_aujourdhui is None:
         return {"erreur": "Impossible de fetch les données"}
     return {"predictions": predict_future(prix_aujourdhui, jours)}
+
+
+@router.get("/predict/regions")
+def predict_regions(jours: int = 7):
+    regions_prix = get_prix_par_region()
+    if not regions_prix:
+        return {"erreur": "Impossible de fetch les données"}
+    return {"predictions": predict_future_regions(regions_prix, jours)}
