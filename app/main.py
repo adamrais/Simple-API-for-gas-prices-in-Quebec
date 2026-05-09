@@ -34,9 +34,10 @@ def _seed_csv():
 
 def _save_daily_price():
     import pandas as pd
-    from datetime import date
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
     from app.services.regie import get_prix_regie
-    today = str(date.today())
+    today = str(datetime.now(ZoneInfo("America/Montreal")).date())
     logger.info(f"[scheduler] Fetching daily price for {today}")
     prix = get_prix_regie()
     if not prix:
@@ -54,9 +55,10 @@ def _save_daily_price():
 
 def _save_daily_regions():
     import pandas as pd
-    from datetime import date
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
     from app.services.regie import get_prix_par_region
-    today = str(date.today())
+    today = str(datetime.now(ZoneInfo("America/Montreal")).date())
     logger.info(f"[scheduler] Fetching daily region prices for {today}")
     regions = get_prix_par_region()
     if not regions:
@@ -77,8 +79,9 @@ def _save_daily_regions():
 
 def _save_if_missing_today():
     import pandas as pd
-    from datetime import date
-    today = str(date.today())
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    today = str(datetime.now(ZoneInfo("America/Montreal")).date())
     if os.path.exists(CSV_PATH):
         df = pd.read_csv(CSV_PATH)
         if today in df["date"].values:
@@ -89,8 +92,9 @@ def _save_if_missing_today():
 
 def _save_if_missing_today_regions():
     import pandas as pd
-    from datetime import date
-    today = str(date.today())
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    today = str(datetime.now(ZoneInfo("America/Montreal")).date())
     if os.path.exists(CSV_REGIONS_PATH):
         df = pd.read_csv(CSV_REGIONS_PATH)
         if today in df["date"].values:

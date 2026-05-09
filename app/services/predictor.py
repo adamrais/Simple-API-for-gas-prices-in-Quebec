@@ -1,7 +1,11 @@
 import pandas as pd
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from app.config import CSV_PATH, CSV_REGIONS_PATH
 from app.services.market import get_wti, get_usdcad, get_tendance_wti, get_tendance_usdcad
+
+def _today():
+    return datetime.now(ZoneInfo("America/Montreal")).date()
 
 
 def _get_market_tendance():
@@ -49,7 +53,7 @@ def _build_predictions(prix_base, tendance, jours):
         moy = round(prix_base + tendance * j, 2)
         delta = round(1.0 + j * 0.3, 2)
         resultats.append({
-            "date": str(date.today() + timedelta(days=j)),
+            "date": str(_today() + timedelta(days=j)),
             "optimiste": round(moy - delta, 2),
             "pessimiste": round(moy + delta, 2),
             "moyen": moy,

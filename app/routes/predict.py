@@ -1,9 +1,13 @@
 from fastapi import APIRouter
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from app.services.regie import get_prix_regie, get_prix_par_region
 from app.services.market import get_wti, get_usdcad
 from app.services.csv_service import get_tendance
 from app.services.predictor import predict_future, predict_future_regions
+
+def _today():
+    return datetime.now(ZoneInfo("America/Montreal")).date()
 
 router = APIRouter()
 
@@ -16,7 +20,7 @@ def predict():
     wti = get_wti()
     usdcad = get_usdcad()
     return {
-        "date": str(date.today()),
+        "date": str(_today()),
         "wti_usd": round(wti, 2) if wti else None,
         "usdcad": round(usdcad, 4) if usdcad else None,
         "prix_predit_cents": prix,

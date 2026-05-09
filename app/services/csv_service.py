@@ -1,6 +1,10 @@
 import csv
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from app.config import CSV_PATH, CSV_REGIONS_PATH
+
+def _today():
+    return datetime.now(ZoneInfo("America/Montreal")).date()
 
 
 def load_prix():
@@ -39,12 +43,12 @@ def get_tendance():
 
 
 def get_historique(date_debut: date):
-    today = date.today()
+    today = _today()
     return [l for l in load_prix() if date_debut <= date.fromisoformat(l["date"]) <= today]
 
 
 def get_historique_region(region: str, date_debut: date):
-    today = date.today()
+    today = _today()
     return [
         {"date": l["date"], "prix": float(l["prix"])}
         for l in load_prix_regions()
