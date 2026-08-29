@@ -1,8 +1,13 @@
 name: Sync CSV from Railway
 
 on:
+  # Primary trigger: Railway POSTs this right after the 10:00 fetch completes.
+  # Dispatch events are not subject to GitHub's scheduled-workflow delay.
+  repository_dispatch:
+    types: [csv-updated]
+  # Fallback only, in case Railway is down. Off the congested :00/:30 slots.
   schedule:
-    - cron: '30 15 * * *'  # 11:30 AM Montreal time (after daily fetch at 10:00)
+    - cron: '17 16 * * *'  # ~12:17 PM Montreal time
   workflow_dispatch:
 
 jobs:

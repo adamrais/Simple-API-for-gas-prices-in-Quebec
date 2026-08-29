@@ -77,6 +77,34 @@ def _save_daily_regions():
     logger.info(f"[scheduler] Saved prices for {len(regions)} regions on {today}")
 
 
+def _trigger_github_sync():
+    import requests
+    token = os.environ.get("GITHUB_SYNC_TOKEN")
+    repo = os.environ.get("GITHUB_SYNC_REPO", "adamrais/Simple-API-for-gas-prices-in-Quebec")
+    if not token:
+        logger.warning("[scheduler] GITHUB_SYNC_TOKEN not set, skipping CSV backup trigger.")
+        return
+    logger.info(f"[scheduler] Triggering CSV backup workflow on {repo}")
+    try:
+        r = requests.post(
+            f"https://api.github.com/repos/{repo}/dispatches",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            json={"event_type": "csv-updated"},
+            timeout=30,
+        )
+    except requests.RequestException as e:
+        logger.error(f"[scheduler] CSV backup trigger failed: {e}")
+        return
+    if r.status_code == 204:
+        logger.info("[scheduler] CSV backup workflow triggered")
+    else:
+        logger.error(f"[scheduler] CSV backup trigger returned {r.status_code}: {r.text[:200]}")
+
+
 def _save_if_missing_today():
     import pandas as pd
     from datetime import datetime
@@ -111,8 +139,9 @@ async def lifespan(app: FastAPI):
     scheduler = BackgroundScheduler()
     scheduler.add_job(_save_daily_price, CronTrigger(hour=10, minute=0, timezone="America/Montreal"))
     scheduler.add_job(_save_daily_regions, CronTrigger(hour=10, minute=1, timezone="America/Montreal"))
+    scheduler.add_job(_trigger_github_sync, CronTrigger(hour=10, minute=5, timezone="America/Montreal"))
     scheduler.start()
-    logger.info("[scheduler] Started — daily price jobs at 10:00/10:01 America/Montreal")
+    logger.info("[scheduler] Started — daily price jobs at 10:00/10:01, CSV backup trigger at 10:05 America/Montreal")
     yield
     scheduler.shutdown()
 
