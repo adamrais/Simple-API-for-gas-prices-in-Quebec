@@ -167,7 +167,7 @@ Le tableau `regions` est trié par nom de région. Les moyennes portent sur les 
 
 ## GET `/stations`
 
-Liste des stations, **sans prix** — sert à découvrir les identifiants à passer à `/stations/{id}`.
+Liste des stations, **sans prix** — sert à découvrir les identifiants à passer à `/stations/{station_id}`.
 
 **Paramètres :**
 
@@ -227,24 +227,42 @@ Une station qui ne vend pas un carburant renvoie ses quatre champs à `null` —
 
 ## GET `/stations/stats`
 
-Identique à `/stations/{id}`, mais retrouve la station par son **adresse** — la clé fournie par le flux de la Régie. Utile si votre client récupère déjà les stations directement depuis la Régie et n'a pas les identifiants de cette API.
+Identique à `/stations/{station_id}`, mais retrouve la station par son **adresse** — la clé fournie par le flux de la Régie. Utile si votre client récupère déjà les stations directement depuis la Régie et n'a pas les identifiants de cette API.
 
 **Paramètres :**
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
 | `adresse` | string | Adresse exacte, telle qu'écrite dans le flux (ex: `?adresse=1 Ogima, Kipawa`) |
-| `carburant` | string | `Régulier` (défaut), `Super` ou `Diesel` |
+| `carburant` | string | Omis : les trois carburants. Sinon `Régulier`, `Super` ou `Diesel` |
 
 L'adresse doit correspondre au caractère près. Retourne `404` si elle est inconnue — ce qui arrive normalement pour une station apparue dans le flux depuis le dernier relevé : prévoyez d'afficher « pas encore d'historique » plutôt qu'une erreur.
 
 ---
 
-## GET `/stations/{id}`
+## GET `/stations/{station_id}`
 
 Prix du jour, moyenne de la veille, moyennes 7 et 30 jours, et historique quotidien complet pour une station.
 
-**Carburant :** ajoutez `?carburant=Super` ou `?carburant=Diesel` pour changer de carburant. Valeurs acceptées : `Régulier` (défaut), `Super`, `Diesel` — toute autre valeur renvoie `400`. Le diesel n'est vendu que par ~2 000 des ~2 450 stations ; une station qui ne le vend pas renvoie `null` et un historique vide.
+**Carburant :** **sans le paramètre `carburant`, la réponse contient les trois carburants** dans un objet `carburants` — un seul aller-retour au lieu de trois. Ajoutez `?carburant=Régulier`, `Super` ou `Diesel` pour n'en obtenir qu'un, à plat comme ci-dessous. Toute autre valeur renvoie `400`. Une station qui ne vend pas un carburant renvoie `null` et un historique vide — c'est le cas de ~460 stations pour le diesel.
+
+**Réponse sans `carburant` :**
+```json
+{
+  "id": 63,
+  "nom": "MIGIZY ODENAW INC",
+  "adresse": "1 Ogima, Kipawa",
+  "region": "Abitibi-Témiscamingue",
+  "lat": 46.786974, "lon": -78.981912,
+  "carburants": {
+    "Régulier": { "aujourd_hui": 186.9, "hier": 186.4, "moyenne_7j": 185.1, "moyenne_30j": 183.8, "historique": [] },
+    "Super":    { "aujourd_hui": 213.9, "hier": 213.5, "moyenne_7j": 212.0, "moyenne_30j": 210.4, "historique": [] },
+    "Diesel":   { "aujourd_hui": null,  "hier": null,  "moyenne_7j": null,  "moyenne_30j": null,  "historique": [] }
+  }
+}
+```
+
+Avec les 31 jours d'historique pour les trois carburants : **523 octets compressés**, contre 947 en trois appels séparés.
 
 
 **Réponse :**

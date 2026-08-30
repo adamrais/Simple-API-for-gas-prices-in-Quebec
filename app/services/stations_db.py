@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from app.config import STATIONS_DB_PATH
 from app.services.regie import _fetch_stations
 
-RETENTION_JOURS = 31
+RETENTION_JOURS = 365
 INTERVALLE_MINUTES = 30
 CARBURANTS = ("Régulier", "Super", "Diesel")
 CARBURANT_DEFAUT = "Régulier"
@@ -50,6 +50,12 @@ CREATE TABLE IF NOT EXISTS prix_jour_quebec (
     somme     REAL NOT NULL,
     n         INTEGER NOT NULL,
     PRIMARY KEY (carburant, date)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS marche (
+    date   TEXT PRIMARY KEY,
+    wti    REAL,
+    usdcad REAL
 ) WITHOUT ROWID;
 
 CREATE INDEX IF NOT EXISTS idx_prix_jour_date ON prix_jour(date);
@@ -264,6 +270,63 @@ def get_station(station_id, carburant=CARBURANT_DEFAUT):
         }
 
 
+def get_station_carburants(station_id):
+    """Métadonnées + les 4 statistiques et l'historique, pour les trois carburants.
+
+    Une seule requête : évite trois allers-retours réseau côté client.
+    """
+    with _connect() as conn:
+        st = conn.execute(
+            "SELECT id, nom, marque, adresse, region, lat, lon FROM stations WHERE id=?",
+            (station_id,),
+        ).fetchone()
+        if st is None:
+            return None
+        lignes = conn.execute(
+            """SELECT carburant, date, somme, n, prix_min, prix_max, dernier
+               FROM prix_jour WHERE station_id=? ORDER BY carburant, date""",
+            (station_id,),
+        ).fetchall()
+
+    today = _today()
+    hier = str(today - timedelta(days=1))
+    par_carburant = defaultdict(list)
+    for l in lignes:
+        par_carburant[l["carburant"]].append(l)
+
+    def stats(rows):
+        par_date = {r["date"]: r for r in rows}
+        aujourdhui, veille = par_date.get(str(today)), par_date.get(hier)
+
+        def moyenne(jours):
+            debut = str(today - timedelta(days=jours - 1))
+            vals = [r["somme"] / r["n"] for r in rows if r["date"] >= debut]
+            return round(sum(vals) / len(vals), 1) if vals else None
+
+        return {
+            "aujourd_hui": aujourdhui["dernier"] if aujourdhui else None,
+            "hier": round(veille["somme"] / veille["n"], 1) if veille else None,
+            "moyenne_7j": moyenne(7),
+            "moyenne_30j": moyenne(30),
+            "historique": [
+                {
+                    "date": r["date"],
+                    "moyenne": round(r["somme"] / r["n"], 1),
+                    "min": r["prix_min"],
+                    "max": r["prix_max"],
+                    "dernier": r["dernier"],
+                    "releves": r["n"],
+                }
+                for r in rows
+            ],
+        }
+
+    return {
+        **dict(st),
+        "carburants": {c: stats(par_carburant.get(c, [])) for c in CARBURANTS},
+    }
+
+
 def _moyenne_jours(conn, table, ou, params, jours, today):
     """Moyenne des moyennes quotidiennes sur la fenêtre — chaque jour compte pareil."""
     debut = str(today - timedelta(days=jours - 1))
@@ -341,7 +404,7 @@ def get_stations_stats(region=None):
                       AVG(CASE WHEN date = :hier  THEN somme / n END)    AS hier,
                       AVG(CASE WHEN date >= :d7   THEN somme / n END)    AS moyenne_7j,
                       AVG(CASE WHEN date >= :d30  THEN somme / n END)    AS moyenne_30j
-               FROM prix_jour GROUP BY station_id, carburant""",
+               FROM prix_jour WHERE date >= :d30 GROUP BY station_id, carburant""",
             params,
         ).fetchall()
 
@@ -359,3 +422,49 @@ def get_stations_stats(region=None):
         {**dict(m), "carburants": {c: par_station[m["id"]].get(c, vide) for c in CARBURANTS}}
         for m in meta
     ]
+
+
+def enregistrer_marche():
+    """Relève le WTI et le USD/CAD du jour. Idempotent : écrase la valeur du jour."""
+    from app.services.market import get_wti, get_usdcad
+    wti, usdcad = get_wti(), get_usdcad()
+    if wti is None and usdcad is None:
+        return False
+    with _connect() as conn:
+        conn.execute(
+            """INSERT INTO marche (date, wti, usdcad) VALUES (?, ?, ?)
+               ON CONFLICT(date) DO UPDATE SET
+                 wti    = COALESCE(excluded.wti, wti),
+                 usdcad = COALESCE(excluded.usdcad, usdcad)""",
+            (str(_today()), wti, usdcad),
+        )
+    return True
+
+
+def reprendre_marche_historique(periode="2y"):
+    """Amorce la table marché depuis l'historique Yahoo. Ne touche pas aux jours déjà présents."""
+    import datetime as _dt
+    from app.services.market import _fetch_yahoo
+
+    def series(symbole):
+        try:
+            res = _fetch_yahoo(symbole, range_=periode)["chart"]["result"][0]
+            horodatages = res["timestamp"]
+            closes = res["indicators"]["quote"][0]["close"]
+        except Exception:
+            return {}
+        return {
+            str(_dt.datetime.utcfromtimestamp(t).date()): c
+            for t, c in zip(horodatages, closes) if c is not None
+        }
+
+    wti, usdcad = series("CL=F"), series("USDCAD=X")
+    if not wti and not usdcad:
+        return 0
+    lignes = [(d, wti.get(d), usdcad.get(d)) for d in sorted(set(wti) | set(usdcad))]
+    with _connect() as conn:
+        conn.executemany(
+            "INSERT INTO marche (date, wti, usdcad) VALUES (?, ?, ?) ON CONFLICT(date) DO NOTHING",
+            lignes,
+        )
+    return len(lignes)

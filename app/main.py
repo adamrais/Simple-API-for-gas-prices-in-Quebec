@@ -93,6 +93,16 @@ def _echantillonner_stations():
     logger.info(f"[scheduler] Relevé enregistré pour {n} stations")
 
 
+def _releve_marche():
+    from app.services.stations_db import enregistrer_marche
+    try:
+        ok = enregistrer_marche()
+    except Exception as e:
+        logger.error(f"[scheduler] Relevé marché échoué: {e}")
+        return
+    logger.info("[scheduler] Marché enregistré" if ok else "[scheduler] Marché indisponible")
+
+
 def _elaguer_stations():
     from app.services.stations_db import elaguer, RETENTION_JOURS
     try:
@@ -160,8 +170,12 @@ def _save_if_missing_today_regions():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_csv()
-    from app.services.stations_db import init_db, INTERVALLE_MINUTES
+    from app.services.stations_db import init_db, reprendre_marche_historique, INTERVALLE_MINUTES
     init_db()
+    try:
+        logger.info(f"[marche] Historique amorcé: {reprendre_marche_historique()} jours")
+    except Exception as e:
+        logger.error(f"[marche] Amorçage échoué: {e}")
     _save_if_missing_today()
     _save_if_missing_today_regions()
     scheduler = BackgroundScheduler()
@@ -171,13 +185,14 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(_echantillonner_stations,
                       CronTrigger(minute=f"*/{INTERVALLE_MINUTES}", timezone="America/Montreal"))
     scheduler.add_job(_elaguer_stations, CronTrigger(hour=3, minute=30, timezone="America/Montreal"))
+    scheduler.add_job(_releve_marche, CronTrigger(hour=17, minute=0, timezone="America/Montreal"))
     scheduler.start()
     # Premier relevé hors du thread principal : ne retarde pas la disponibilité
     # de l'app au démarrage (le redéploiement Railway est déjà une fenêtre 502).
     scheduler.add_job(_echantillonner_stations)
     logger.info(
         "[scheduler] Started — daily price jobs at 10:00/10:01, CSV backup trigger at 10:05, "
-        f"stations sampled every {INTERVALLE_MINUTES} min, pruning at 03:30 America/Montreal")
+        f"stations sampled every {INTERVALLE_MINUTES} min, market at 17:00, pruning at 03:30 America/Montreal")
     yield
     scheduler.shutdown()
 

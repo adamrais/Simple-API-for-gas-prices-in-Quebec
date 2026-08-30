@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Response, Query
 from app.services.stations_db import (
     get_stations, get_stations_stats, get_station, get_station_par_adresse,
+    get_station_carburants,
     INTERVALLE_MINUTES, CARBURANTS, CARBURANT_DEFAUT,
 )
 
@@ -10,6 +11,13 @@ router = APIRouter()
 
 _CACHE_LISTE = 86400              # les métadonnées de station bougent rarement
 _CACHE_STATION = INTERVALLE_MINUTES * 60
+
+
+def _id_par_adresse(adresse):
+    from app.services.stations_db import _connect
+    with _connect() as conn:
+        r = conn.execute("SELECT id FROM stations WHERE adresse=?", (adresse,)).fetchone()
+    return r["id"] if r else None
 
 
 def _valider(carburant):
@@ -37,9 +45,16 @@ def stations(response: Response, region: Optional[str] = Query(None),
 
 @router.get("/stations/stats")
 def station_par_adresse(adresse: str, response: Response,
-                        carburant: str = Query(CARBURANT_DEFAUT)):
-    """Mêmes statistiques, retrouvées par l'adresse exacte du flux de la Régie."""
-    s = get_station_par_adresse(adresse, _valider(carburant))
+                        carburant: Optional[str] = Query(None)):
+    """Mêmes statistiques, retrouvées par l'adresse exacte du flux de la Régie.
+
+    Sans `carburant`, renvoie les trois d'un coup.
+    """
+    if carburant is None:
+        ident = _id_par_adresse(adresse)
+        s = get_station_carburants(ident) if ident else None
+    else:
+        s = get_station_par_adresse(adresse, _valider(carburant))
     if s is None:
         raise HTTPException(404, detail="Adresse introuvable")
     response.headers["Cache-Control"] = f"public, max-age={_CACHE_STATION}"
@@ -48,9 +63,13 @@ def station_par_adresse(adresse: str, response: Response,
 
 @router.get("/stations/{station_id}")
 def station(station_id: int, response: Response,
-            carburant: str = Query(CARBURANT_DEFAUT)):
-    """Prix du jour, moyenne de la veille, moyennes 7 et 30 jours, et historique."""
-    s = get_station(station_id, _valider(carburant))
+            carburant: Optional[str] = Query(None)):
+    """Prix du jour, moyenne de la veille, moyennes 7 et 30 jours, et historique.
+
+    Sans `carburant`, renvoie les trois d'un coup.
+    """
+    s = (get_station_carburants(station_id) if carburant is None
+         else get_station(station_id, _valider(carburant)))
     if s is None:
         raise HTTPException(404, detail="Station introuvable")
     response.headers["Cache-Control"] = f"public, max-age={_CACHE_STATION}"
