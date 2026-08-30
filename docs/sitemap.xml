@@ -25,6 +25,10 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://proessence.up.railway.app/comparaison-regions.html</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://proessence.up.railway.app/propos.html</loc>
     <priority>0.5</priority>
   </url>

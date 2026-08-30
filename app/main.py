@@ -49,7 +49,9 @@ def _save_daily_price():
         df = pd.concat([df, nouvelle_ligne]).drop_duplicates(subset="date").reset_index(drop=True)
     else:
         df = nouvelle_ligne
-    df.to_csv(CSV_PATH, index=False)
+    tmp = CSV_PATH + ".tmp"
+    df.to_csv(tmp, index=False)
+    os.replace(tmp, CSV_PATH)
     logger.info(f"[scheduler] Saved price {prix}¢ for {today}")
 
 
@@ -73,7 +75,9 @@ def _save_daily_regions():
         df = pd.concat([df, nouvelles_lignes]).drop_duplicates(subset=["date", "region"]).reset_index(drop=True)
     else:
         df = nouvelles_lignes
-    df.to_csv(CSV_REGIONS_PATH, index=False)
+    tmp = CSV_REGIONS_PATH + ".tmp"
+    df.to_csv(tmp, index=False)
+    os.replace(tmp, CSV_REGIONS_PATH)
     logger.info(f"[scheduler] Saved prices for {len(regions)} regions on {today}")
 
 

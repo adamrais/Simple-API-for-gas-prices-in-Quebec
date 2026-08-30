@@ -103,6 +103,43 @@ Prix moyen actuel par région administrative du Québec (données temps réel de
 
 ---
 
+## GET `/regions/stats`
+
+Statistiques par région administrative : prix du jour, de la veille, et moyennes sur 7 et 30 jours. Calculé à partir de l'historique enregistré (aucun appel externe).
+
+**Réponse :**
+```json
+{
+  "date": "2026-08-30",
+  "regions": {
+    "Montréal": {
+      "aujourd_hui": 198.6,
+      "hier": 194.0,
+      "moyenne_7j": 191.4,
+      "moyenne_30j": 185.1
+    },
+    "Outaouais": {
+      "aujourd_hui": 174.6,
+      "hier": 175.3,
+      "moyenne_7j": 174.7,
+      "moyenne_30j": 173.3
+    }
+  }
+}
+```
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `date` | string | Date du jour (`YYYY-MM-DD`), fuseau America/Montreal |
+| `aujourd_hui` | float \| null | Prix moyen enregistré aujourd'hui |
+| `hier` | float \| null | Prix moyen enregistré la veille |
+| `moyenne_7j` | float \| null | Moyenne sur la fenêtre des 7 derniers jours (aujourd'hui inclus) |
+| `moyenne_30j` | float \| null | Moyenne sur la fenêtre des 30 derniers jours (aujourd'hui inclus) |
+
+> Les moyennes portent sur les jours **réellement enregistrés** dans la fenêtre. Un champ vaut `null` si aucune donnée n'existe pour la période (ex. `aujourd_hui` avant la collecte quotidienne de 10 h 01).
+
+---
+
 ## GET `/prix`
 
 Prix moyen historique enregistré pour une date précise.

@@ -26,6 +26,7 @@ All prices are in **¢/L** (cents per litre).
 | `GET` | `/predict/futur?jours=7` | Multi-day forecast |
 | `GET` | `/prix?date=YYYY-MM-DD` | Historical price for a specific date |
 | `GET` | `/regions` | Live price by Quebec administrative region |
+| `GET` | `/regions/stats` | Per-region price today, yesterday, 7-day and 30-day averages |
 | `GET` | `/graphique?date_debut=YYYY-MM-DD` | Historical data since a start date |
 
 ### `/predict`

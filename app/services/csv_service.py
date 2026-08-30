@@ -1,5 +1,6 @@
 import csv
-from datetime import date, datetime
+from collections import defaultdict
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 from app.config import CSV_PATH, CSV_REGIONS_PATH
 
@@ -59,3 +60,30 @@ def get_historique_region(region: str, date_debut: date):
 def get_regions():
     lignes = load_prix_regions()
     return sorted({l["region"] for l in lignes})
+
+
+def get_stats_regions():
+    par_region = defaultdict(dict)
+    for l in load_prix_regions():
+        try:
+            par_region[l["region"]][date.fromisoformat(l["date"])] = float(l["prix"])
+        except (KeyError, ValueError):
+            continue
+
+    today = _today()
+    hier = today - timedelta(days=1)
+
+    def moyenne(prix_par_date, jours):
+        debut = today - timedelta(days=jours - 1)
+        valeurs = [p for d, p in prix_par_date.items() if debut <= d <= today]
+        return round(sum(valeurs) / len(valeurs), 1) if valeurs else None
+
+    return {
+        region: {
+            "aujourd_hui": prix.get(today),
+            "hier": prix.get(hier),
+            "moyenne_7j": moyenne(prix, 7),
+            "moyenne_30j": moyenne(prix, 30),
+        }
+        for region, prix in sorted(par_region.items())
+    }
