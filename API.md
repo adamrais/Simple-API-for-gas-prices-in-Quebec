@@ -105,7 +105,7 @@ Prix moyen actuel par région administrative du Québec (données temps réel de
 
 ## GET `/regions/stats`
 
-Statistiques pour l'ensemble du Québec et par région administrative : prix du jour, de la veille, et moyennes sur 7 et 30 jours. Calculé à partir de l'historique enregistré (aucun appel externe — réponse en quelques millisecondes).
+Statistiques pour l'ensemble du Québec et par région administrative : prix du jour, de la veille, et moyennes sur 7 et 30 jours. Agrégé depuis les relevés station effectués toutes les 30 minutes (base SQLite, aucun appel externe).
 
 **Réponse :**
 ```json
@@ -148,13 +148,15 @@ Statistiques pour l'ensemble du Québec et par région administrative : prix du 
 
 Le tableau `regions` est trié par nom de région. Les moyennes portent sur les jours **réellement enregistrés** dans la fenêtre.
 
-> **Ce sont des relevés ponctuels, pas des moyennes journalières.** Le prix provincial est capté à 10 h 00 et les prix régionaux à 10 h 01 (heure de Montréal), par deux appels distincts au flux de la Régie. `moyenne_7j` et `moyenne_30j` sont donc des moyennes de ces relevés quotidiens.
+> **Ce sont de vraies moyennes journalières.** Les ~2 450 stations sont relevées toutes les 30 minutes (48 fois par jour). `aujourd_hui` est la moyenne des relevés depuis minuit — elle se précise au fil de la journée. `hier` est la moyenne complète de la veille. `moyenne_7j` et `moyenne_30j` sont les moyennes de ces moyennes quotidiennes : chaque jour compte à parts égales, quel que soit son nombre de relevés.
 
-> **`quebec` n'est pas la moyenne du tableau `regions`.** C'est la moyenne de toutes les stations de la province (~2 450), où les régions comptant le plus de stations pèsent davantage. La moyenne arithmétique des 18 valeurs régionales donne un résultat plus élevé — écart mesuré de 1,5 ¢ sur un instantané unique — car elle accorde le même poids à `Municipalités hors MRC \ CMM` (1 station) qu'à la Montérégie (380 stations).
+> **Démarrage à froid.** Cette source a été mise en service le 30 août 2026 et se remplit progressivement : `hier` apparaît après un jour, `moyenne_7j` devient significative après une semaine, `moyenne_30j` après un mois. Sur une fenêtre incomplète, la moyenne porte sur les jours réellement disponibles.
 
-> Un champ vaut `null` si aucune donnée n'existe pour la période. En pratique, `aujourd_hui` est `null` chaque matin entre minuit et la collecte quotidienne de 10 h 01 — prévoyez des types optionnels côté client.
+> **`quebec` n'est pas la moyenne du tableau `regions`.** C'est la moyenne de toutes les stations de la province (~2 450), où les régions comptant le plus de stations pèsent davantage. La moyenne arithmétique des 18 valeurs régionales donne un résultat plus élevé — écart mesuré de 1,5 ¢ sur un relevé unique — car elle accorde le même poids à `Municipalités hors MRC \ CMM` (1 station) qu'à la Montérégie (380 stations).
 
-**Cache :** la réponse porte un en-tête `Cache-Control: public, max-age=N` où `N` est le nombre de secondes restant avant la prochaine collecte (10 h 02, heure de Montréal). Les clients HTTP standards (`URLSession`, navigateurs) évitent ainsi les appels redondants.
+> Un champ vaut `null` si aucune donnée n'existe pour la période. En pratique, `aujourd_hui` est `null` chaque nuit entre minuit et le premier relevé (au plus 30 minutes) — prévoyez des types optionnels côté client.
+
+**Cache :** la réponse porte un en-tête `Cache-Control: public, max-age=N` où `N` est le nombre de secondes restant avant le prochain relevé — au plus 31 minutes. Les clients HTTP standards (`URLSession`, navigateurs) évitent ainsi les appels redondants.
 
 ---
 
@@ -186,6 +188,20 @@ Liste des stations, **sans prix** — sert à découvrir les identifiants à pas
 ```
 
 > La liste complète pèse ~409 Ko (2 451 stations). Utilisez `?region=` pour la réduire — Montréal ne fait que 36 Ko. Mise en cache 24 h (`Cache-Control`), les métadonnées de station changent rarement.
+
+---
+
+## GET `/stations/stats`
+
+Identique à `/stations/{id}`, mais retrouve la station par son **adresse** — la clé fournie par le flux de la Régie. Utile si votre client récupère déjà les stations directement depuis la Régie et n'a pas les identifiants de cette API.
+
+**Paramètres :**
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `adresse` | string | Adresse exacte, telle qu'écrite dans le flux (ex: `?adresse=1 Ogima, Kipawa`) |
+
+L'adresse doit correspondre au caractère près. Retourne `404` si elle est inconnue — ce qui arrive normalement pour une station apparue dans le flux depuis le dernier relevé : prévoyez d'afficher « pas encore d'historique » plutôt qu'une erreur.
 
 ---
 

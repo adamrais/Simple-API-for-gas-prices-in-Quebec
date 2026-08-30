@@ -1,6 +1,5 @@
 import csv
-from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from app.config import CSV_PATH, CSV_REGIONS_PATH
 
@@ -60,42 +59,3 @@ def get_historique_region(region: str, date_debut: date):
 def get_regions():
     lignes = load_prix_regions()
     return sorted({l["region"] for l in lignes})
-
-
-def _stats_serie(prix_par_date, today):
-    def moyenne(jours):
-        debut = today - timedelta(days=jours - 1)
-        valeurs = [p for d, p in prix_par_date.items() if debut <= d <= today]
-        return round(sum(valeurs) / len(valeurs), 1) if valeurs else None
-
-    return {
-        "aujourd_hui": prix_par_date.get(today),
-        "hier": prix_par_date.get(today - timedelta(days=1)),
-        "moyenne_7j": moyenne(7),
-        "moyenne_30j": moyenne(30),
-    }
-
-
-def get_stats_regions():
-    par_region = defaultdict(dict)
-    for l in load_prix_regions():
-        try:
-            par_region[l["region"]][date.fromisoformat(l["date"])] = float(l["prix"])
-        except (KeyError, ValueError):
-            continue
-
-    today = _today()
-    return [
-        dict(region=region, **_stats_serie(prix, today))
-        for region, prix in sorted(par_region.items())
-    ]
-
-
-def get_stats_quebec():
-    prix_par_date = {}
-    for l in load_prix():
-        try:
-            prix_par_date[date.fromisoformat(l["date"])] = float(l["prix_pompe"])
-        except (KeyError, ValueError):
-            continue
-    return _stats_serie(prix_par_date, _today())

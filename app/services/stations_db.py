@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -29,6 +30,20 @@ CREATE TABLE IF NOT EXISTS prix_jour (
     prix_max   REAL NOT NULL,
     dernier    REAL NOT NULL,
     PRIMARY KEY (station_id, date)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS prix_jour_region (
+    region TEXT NOT NULL,
+    date   TEXT NOT NULL,
+    somme  REAL NOT NULL,
+    n      INTEGER NOT NULL,
+    PRIMARY KEY (region, date)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS prix_jour_quebec (
+    date  TEXT PRIMARY KEY,
+    somme REAL NOT NULL,
+    n     INTEGER NOT NULL
 ) WITHOUT ROWID;
 
 CREATE INDEX IF NOT EXISTS idx_prix_jour_date ON prix_jour(date);
@@ -110,6 +125,23 @@ def enregistrer_releve(data=None):
                  dernier  = excluded.dernier""",
             [(ids[r["adresse"]], jour, r["prix"], r["prix"], r["prix"], r["prix"]) for r in releves],
         )
+
+        # Moyenne de ce relevé par région, puis pour la province entière.
+        par_region = defaultdict(list)
+        for r in releves:
+            if r["region"]:
+                par_region[r["region"]].append(r["prix"])
+        conn.executemany(
+            """INSERT INTO prix_jour_region (region, date, somme, n) VALUES (?, ?, ?, 1)
+               ON CONFLICT(region, date) DO UPDATE SET somme = somme + excluded.somme, n = n + 1""",
+            [(reg, jour, sum(v) / len(v)) for reg, v in par_region.items()],
+        )
+        tous = [r["prix"] for r in releves]
+        conn.execute(
+            """INSERT INTO prix_jour_quebec (date, somme, n) VALUES (?, ?, 1)
+               ON CONFLICT(date) DO UPDATE SET somme = somme + excluded.somme, n = n + 1""",
+            (jour, sum(tous) / len(tous)),
+        )
     return len(releves)
 
 
@@ -135,6 +167,13 @@ def get_stations():
     with _connect() as conn:
         return [dict(r) for r in conn.execute(
             "SELECT id, nom, marque, adresse, region, lat, lon FROM stations ORDER BY region, adresse")]
+
+
+def get_station_par_adresse(adresse):
+    """Même chose que get_station, mais par l'adresse — la clé fournie par le flux de la Régie."""
+    with _connect() as conn:
+        r = conn.execute("SELECT id FROM stations WHERE adresse=?", (adresse,)).fetchone()
+    return get_station(r["id"]) if r else None
 
 
 def get_station(station_id):
@@ -176,4 +215,51 @@ def get_station(station_id):
                 }
                 for l in lignes
             ],
+        }
+
+
+def _moyenne_jours(conn, table, ou, params, jours, today):
+    """Moyenne des moyennes quotidiennes sur la fenêtre — chaque jour compte pareil."""
+    debut = str(today - timedelta(days=jours - 1))
+    r = conn.execute(
+        f"SELECT AVG(somme / n) m FROM {table} WHERE {ou} AND date >= ?",
+        (*params, debut),
+    ).fetchone()
+    return round(r["m"], 1) if r and r["m"] is not None else None
+
+
+def _valeur_jour(conn, table, ou, params, jour):
+    r = conn.execute(
+        f"SELECT somme / n AS v FROM {table} WHERE {ou} AND date = ?", (*params, jour)
+    ).fetchone()
+    return round(r["v"], 1) if r else None
+
+
+def get_stats_regions_db():
+    today = _today()
+    hier = str(today - timedelta(days=1))
+    with _connect() as conn:
+        regions = [r["region"] for r in conn.execute(
+            "SELECT DISTINCT region FROM prix_jour_region ORDER BY region")]
+        return [
+            {
+                "region": reg,
+                "aujourd_hui": _valeur_jour(conn, "prix_jour_region", "region=?", (reg,), str(today)),
+                "hier": _valeur_jour(conn, "prix_jour_region", "region=?", (reg,), hier),
+                "moyenne_7j": _moyenne_jours(conn, "prix_jour_region", "region=?", (reg,), 7, today),
+                "moyenne_30j": _moyenne_jours(conn, "prix_jour_region", "region=?", (reg,), 30, today),
+            }
+            for reg in regions
+        ]
+
+
+def get_stats_quebec_db():
+    today = _today()
+    hier = str(today - timedelta(days=1))
+    with _connect() as conn:
+        return {
+            "aujourd_hui": _valeur_jour(conn, "prix_jour_quebec", "1=1", (), str(today)),
+            "hier": _valeur_jour(conn, "prix_jour_quebec", "1=1", (), hier),
+            "moyenne_7j": _moyenne_jours(conn, "prix_jour_quebec", "1=1", (), 7, today),
+            "moyenne_30j": _moyenne_jours(conn, "prix_jour_quebec", "1=1", (), 30, today),
         }

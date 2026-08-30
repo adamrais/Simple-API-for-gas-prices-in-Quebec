@@ -29,6 +29,7 @@ All prices are in **¢/L** (cents per litre).
 | `GET` | `/regions/stats` | Province-wide and per-region price today, yesterday, 7-day and 30-day averages |
 | `GET` | `/stations` | Station directory (id, name, brand, address, region, coordinates) |
 | `GET` | `/stations/{id}` | Per-station price today, yesterday average, 7-day and 30-day averages, plus 31-day history |
+| `GET` | `/stations/stats?adresse=` | Same, looked up by the station address used in the Régie feed |
 | `GET` | `/graphique?date_debut=YYYY-MM-DD` | Historical data since a start date |
 
 ### `/predict`

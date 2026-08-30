@@ -2,12 +2,11 @@ from fastapi import APIRouter, Response
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from app.services.regie import get_prix_par_region
-from app.services.csv_service import get_stats_regions, get_stats_quebec
+from app.services.stations_db import (
+    get_stats_regions_db, get_stats_quebec_db, INTERVALLE_MINUTES,
+)
 
 _TZ = ZoneInfo("America/Montreal")
-# La collecte par région tourne à 10:01 ; une minute de marge pour qu'elle
-# se termine avant que le cache ne soit prolongé jusqu'au lendemain.
-_HEURE_MAJ = (10, 2)
 
 
 def _today():
@@ -15,10 +14,13 @@ def _today():
 
 
 def _max_age():
+    """Expire au prochain échantillonnage : les agrégats changent toutes les
+    INTERVALLE_MINUTES. Une minute de marge pour que le relevé se termine."""
     maintenant = datetime.now(_TZ)
-    prochaine = maintenant.replace(hour=_HEURE_MAJ[0], minute=_HEURE_MAJ[1], second=0, microsecond=0)
-    if prochaine <= maintenant:
-        prochaine += timedelta(days=1)
+    passees = maintenant.minute % INTERVALLE_MINUTES
+    prochaine = (maintenant.replace(second=0, microsecond=0)
+                 - timedelta(minutes=passees)
+                 + timedelta(minutes=INTERVALLE_MINUTES + 1))
     return max(60, int((prochaine - maintenant).total_seconds()))
 
 
@@ -35,6 +37,6 @@ def regions_stats(response: Response):
     response.headers["Cache-Control"] = f"public, max-age={_max_age()}"
     return {
         "date": str(_today()),
-        "quebec": get_stats_quebec(),
-        "regions": get_stats_regions(),
+        "quebec": get_stats_quebec_db(),
+        "regions": get_stats_regions_db(),
     }

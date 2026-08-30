@@ -4,6 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -189,6 +190,9 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+# En dessous de 1000 octets, la compression coûte plus qu'elle ne rapporte.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.include_router(predict_router)
 app.include_router(prix_router)

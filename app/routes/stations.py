@@ -1,7 +1,9 @@
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Response, Query
-from app.services.stations_db import get_stations, get_station, INTERVALLE_MINUTES
+from app.services.stations_db import (
+    get_stations, get_station, get_station_par_adresse, INTERVALLE_MINUTES,
+)
 
 router = APIRouter()
 
@@ -20,6 +22,16 @@ def stations(response: Response, region: Optional[str] = Query(None)):
             regions = sorted({s["region"] for s in get_stations() if s["region"]})
             raise HTTPException(404, detail=f"Région inconnue. Régions disponibles: {regions}")
     return {"stations": liste}
+
+
+@router.get("/stations/stats")
+def station_par_adresse(adresse: str, response: Response):
+    """Mêmes statistiques, retrouvées par l'adresse exacte du flux de la Régie."""
+    s = get_station_par_adresse(adresse)
+    if s is None:
+        raise HTTPException(404, detail="Adresse introuvable")
+    response.headers["Cache-Control"] = f"public, max-age={_CACHE_STATION}"
+    return s
 
 
 @router.get("/stations/{station_id}")
