@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prix par station-service au Québec — ProEssence</title>
+    <meta name="description" content="Prix de l'essence ordinaire, super et diesel pour chaque station-service du Québec : aujourd'hui, hier, moyennes 7 et 30 jours. Plus de 2 400 stations.">
+    <meta name="keywords" content="prix essence par station Québec, station service prix, diesel Québec, super Québec, comparateur essence station">
+    <style>
+      body {
+        background-color: white;
+        font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', sans-serif;
+        padding: 20px; margin: 0; text-align: center;
+        min-height: 100vh; display: flex; flex-direction: column;
+      }
+      main { flex: 1; }
+      #titre-principal {
+        color: #003DA5; font-size: clamp(28px, 9vw, 64px); font-weight: bold;
+        text-align: center; margin: 0; border-bottom: 4px solid #003DA5;
+        padding: 10px 20px; display: inline-block;
+      }
+      #nav { text-align: center; margin-top: 20px; }
+      #nav button {
+        background-color: white; color: #003DA5; border: 2px solid #003DA5;
+        border-radius: 8px; padding: 10px 28px; font-size: 20px;
+        font-family: 'Lucida Sans', sans-serif; cursor: pointer; margin: 4px 8px;
+        transition: background-color 0.2s, color 0.2s;
+      }
+      #nav button:hover { background-color: #003DA5; color: white; }
+      #filtres {
+        margin-top: 28px; display: flex; gap: 12px; justify-content: center;
+        flex-wrap: wrap; align-items: center;
+      }
+      #filtres select, #filtres input {
+        font-size: 17px; padding: 9px 16px; border: 2px solid #003DA5;
+        border-radius: 8px; color: #003DA5; font-family: 'Lucida Sans', sans-serif;
+        outline: none; max-width: 100%;
+      }
+      #filtres input { min-width: 240px; }
+      #compte { font-size: 15px; color: #666; margin-top: 12px; }
+      .table-wrapper {
+        margin: 16px auto 0; max-width: 1400px; width: 100%;
+        overflow-x: auto; border: 1px solid #d8d8d8; border-radius: 8px;
+      }
+      table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1050px; }
+      thead th {
+        position: sticky; top: 0; background-color: #003DA5; color: white;
+        font-size: 14px; padding: 8px 6px; white-space: nowrap; z-index: 2;
+      }
+      thead tr.groupes th { font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.35); }
+      thead tr.groupes th.g-reg   { background-color: #003DA5; }
+      thead tr.groupes th.g-super { background-color: #0a58c2; }
+      thead tr.groupes th.g-die   { background-color: #12406e; }
+      thead tr.champs th { cursor: pointer; user-select: none; font-weight: normal; }
+      thead tr.champs th:hover { background-color: #0052dd; }
+      th.station, td.station {
+        position: sticky; left: 0; text-align: left; z-index: 1;
+        max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      thead th.station { z-index: 3; }
+      td {
+        padding: 7px 6px; font-size: 14px; color: #222;
+        border-bottom: 1px solid #e6e6e6; white-space: nowrap; text-align: right;
+      }
+      td.station { background-color: white; color: #003DA5; font-weight: bold; }
+      td.region { text-align: left; color: #555; font-size: 13px; }
+      tbody tr:nth-child(even) td { background-color: #f4f7fc; }
+      tbody tr:nth-child(even) td.station { background-color: #f4f7fc; }
+      tbody tr:hover td { background-color: #e6eefb; }
+      td.sep { border-left: 2px solid #cfd8e8; }
+      th.sep { border-left: 2px solid rgba(255,255,255,0.4); }
+      .vide { color: #bbb; }
+      #maj { font-size: 15px; color: gray; margin-top: 20px; }
+      @media (max-width: 600px) {
+        #nav button { font-size: 14px; padding: 8px 14px; }
+        #filtres input { min-width: 0; width: 100%; }
+        footer { padding: 16px 12px !important; }
+        footer a { display: inline-block; line-height: 2; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="titre-principal">Prix par station</h1>
+      <p style="font-size: 16px; color: #555; margin: 8px 0 0;">Essence ordinaire, super et diesel pour chaque station-service du Québec, relevés toutes les 30 minutes. Cliquez sur une colonne pour trier.</p>
+
+      <div id="nav">
+        <a href="index.html"><button>Accueil</button></a>
+        <a href="aujourd-hui.html"><button>Prix aujourd'hui</button></a>
+        <a href="comparaison-regions.html"><button>Comparaison par région</button></a>
+        <a href="historique.html"><button>Données historiques</button></a>
+      </div>
+
+      <div id="filtres">
+        <select id="region-select"><option value="">Toutes les régions</option></select>
+        <input id="recherche" type="search" placeholder="Rechercher une station ou une adresse…" aria-label="Rechercher">
+      </div>
+      <p id="compte">Chargement...</p>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr class="groupes">
+              <th class="station" rowspan="2">Station</th>
+              <th rowspan="2">Région</th>
+              <th class="g-reg sep" colspan="4">Ordinaire</th>
+              <th class="g-super sep" colspan="4">Super</th>
+              <th class="g-die sep" colspan="4">Diesel</th>
+            </tr>
+            <tr class="champs" id="entetes"></tr>
+          </thead>
+          <tbody id="corps">
+            <tr><td colspan="14" style="padding: 20px; text-align: center;">Chargement...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p style="font-size: 14px; color: #666; max-width: 1400px; margin: 16px auto 0; text-align: left; padding: 0 4px;">
+        « Aujourd'hui » est le dernier prix relevé ; « Hier » est la moyenne complète de la veille ; les moyennes 7 et 30 jours sont les moyennes des moyennes quotidiennes. Un tiret signifie que la station ne vend pas ce carburant, ou qu'aucune donnée n'a encore été recueillie — le diesel n'est offert que par environ 2 000 des 2 465 stations.
+      </p>
+
+      <p id="maj">Chargement...</p>
+    </main>
+
+    <footer style="background-color: #003DA5; color: white; padding: 20px 40px; text-align: center;">
+      <a href="index.html" style="color: white; text-decoration: none; margin: 0 15px;">Accueil</a>
+      <a href="aujourd-hui.html" style="color: white; text-decoration: none; margin: 0 15px;">Prix aujourd'hui</a>
+      <a href="comparaison-regions.html" style="color: white; text-decoration: none; margin: 0 15px;">Comparaison par région</a>
+      <a href="historique.html" style="color: white; text-decoration: none; margin: 0 15px;">Données historiques</a>
+      <p style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 12px; margin-bottom: 0;">
+        Conditions d'utilisation &nbsp;|&nbsp; Politique de confidentialité &nbsp;|&nbsp; Contactez-nous
+      </p>
+    </footer>
+
+    <script>
+      const CARBURANTS = ["Régulier", "Super", "Diesel"];
+      const CHAMPS = [
+        ["aujourd_hui", "Auj."], ["hier", "Hier"],
+        ["moyenne_7j", "7 j"], ["moyenne_30j", "30 j"]
+      ];
+      let toutes = [];
+      let triCle = "nom", triCarb = null, triAsc = true;
+
+      const fmt = v => v === null || v === undefined
+        ? '<span class="vide">—</span>' : v.toFixed(1);
+
+      // En-têtes de champs : 4 par carburant
+      document.getElementById("entetes").innerHTML = CARBURANTS.map((c, i) =>
+        CHAMPS.map(([cle, lib], j) =>
+          `<th data-carb="${c}" data-cle="${cle}"${j === 0 ? ' class="sep"' : ''}>${lib}</th>`
+        ).join("")
+      ).join("");
+
+      function valeurTri(s) {
+        if (triCarb === null) return s[triCle];
+        return s.carburants[triCarb][triCle];
+      }
+
+      function filtrees() {
+        const reg = document.getElementById("region-select").value;
+        const q = document.getElementById("recherche").value.trim().toLowerCase();
+        let out = toutes;
+        if (reg) out = out.filter(s => s.region === reg);
+        if (q) out = out.filter(s =>
+          (s.nom || "").toLowerCase().includes(q) || (s.adresse || "").toLowerCase().includes(q));
+        return out;
+      }
+
+      function rendre() {
+        const lignes = filtrees().slice().sort((a, b) => {
+          let x = valeurTri(a), y = valeurTri(b);
+          if (triCarb === null) {
+            x = (x || ""); y = (y || "");
+            return triAsc ? x.localeCompare(y, "fr") : y.localeCompare(x, "fr");
+          }
+          if (x === null || x === undefined) return 1;
+          if (y === null || y === undefined) return -1;
+          return triAsc ? x - y : y - x;
+        });
+
+        document.getElementById("compte").textContent =
+          lignes.length + " station" + (lignes.length > 1 ? "s" : "") + " sur " + toutes.length;
+
+        document.getElementById("corps").innerHTML = lignes.length === 0
+          ? '<tr><td colspan="14" style="padding: 20px; text-align: center;">Aucune station ne correspond.</td></tr>'
+          : lignes.map(s => {
+              const cells = CARBURANTS.map(c =>
+                CHAMPS.map(([cle], j) =>
+                  `<td${j === 0 ? ' class="sep"' : ''}>${fmt(s.carburants[c][cle])}</td>`
+                ).join("")
+              ).join("");
+              return `<tr>
+                <td class="station" title="${(s.nom || "").trim()} — ${s.adresse || ""}">${(s.nom || "").trim() || s.adresse}</td>
+                <td class="region">${s.region || ""}</td>${cells}</tr>`;
+            }).join("");
+      }
+
+      document.getElementById("entetes").addEventListener("click", e => {
+        const th = e.target.closest("th");
+        if (!th) return;
+        const carb = th.dataset.carb, cle = th.dataset.cle;
+        if (triCarb === carb && triCle === cle) triAsc = !triAsc;
+        else { triCarb = carb; triCle = cle; triAsc = true; }
+        rendre();
+      });
+
+      document.getElementById("region-select").addEventListener("change", rendre);
+      document.getElementById("recherche").addEventListener("input", rendre);
+
+      fetch("https://proessence.up.railway.app/stations?stats=true")
+        .then(r => r.json())
+        .then(data => {
+          toutes = data.stations;
+          const regions = [...new Set(toutes.map(s => s.region).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+          document.getElementById("region-select").innerHTML =
+            '<option value="">Toutes les régions</option>' +
+            regions.map(r => `<option value="${r}">${r}</option>`).join("");
+          rendre();
+          document.getElementById("maj").textContent = "Source : Régie de l'énergie du Québec";
+        })
+        .catch(() => {
+          document.getElementById("corps").innerHTML = '<tr><td colspan="14" style="padding: 20px; text-align: center;">Données indisponibles pour le moment.</td></tr>';
+          document.getElementById("compte").textContent = "";
+          document.getElementById("maj").textContent = "";
+        });
+    </script>
+  </body>
+</html>

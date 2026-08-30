@@ -312,3 +312,50 @@ def get_stats_quebec_db(carburant=CARBURANT_DEFAUT):
             "moyenne_7j": _moyenne_jours(conn, "prix_jour_quebec", ou, prm, 7, today),
             "moyenne_30j": _moyenne_jours(conn, "prix_jour_quebec", ou, prm, 30, today),
         }
+
+
+def get_stations_stats(region=None):
+    """Toutes les stations avec, pour chaque carburant, les 4 statistiques.
+
+    Une seule requête agrégée : les moyennes multi-jours sont des moyennes de
+    moyennes quotidiennes, cohérentes avec get_station().
+    """
+    today = _today()
+    params = {
+        "today": str(today),
+        "hier": str(today - timedelta(days=1)),
+        "d7": str(today - timedelta(days=6)),
+        "d30": str(today - timedelta(days=29)),
+    }
+    with _connect() as conn:
+        meta = conn.execute(
+            "SELECT id, nom, marque, adresse, region, lat, lon FROM stations"
+            + (" WHERE region = :region" if region else "")
+            + " ORDER BY region, adresse",
+            {"region": region} if region else {},
+        ).fetchall()
+
+        stats = conn.execute(
+            """SELECT station_id, carburant,
+                      MAX(CASE WHEN date = :today THEN dernier END)      AS aujourd_hui,
+                      AVG(CASE WHEN date = :hier  THEN somme / n END)    AS hier,
+                      AVG(CASE WHEN date >= :d7   THEN somme / n END)    AS moyenne_7j,
+                      AVG(CASE WHEN date >= :d30  THEN somme / n END)    AS moyenne_30j
+               FROM prix_jour GROUP BY station_id, carburant""",
+            params,
+        ).fetchall()
+
+    par_station = defaultdict(dict)
+    for r in stats:
+        par_station[r["station_id"]][r["carburant"]] = {
+            "aujourd_hui": round(r["aujourd_hui"], 1) if r["aujourd_hui"] is not None else None,
+            "hier": round(r["hier"], 1) if r["hier"] is not None else None,
+            "moyenne_7j": round(r["moyenne_7j"], 1) if r["moyenne_7j"] is not None else None,
+            "moyenne_30j": round(r["moyenne_30j"], 1) if r["moyenne_30j"] is not None else None,
+        }
+
+    vide = {"aujourd_hui": None, "hier": None, "moyenne_7j": None, "moyenne_30j": None}
+    return [
+        {**dict(m), "carburants": {c: par_station[m["id"]].get(c, vide) for c in CARBURANTS}}
+        for m in meta
+    ]

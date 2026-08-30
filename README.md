@@ -28,7 +28,7 @@ All prices are in **¢/L** (cents per litre).
 | `GET` | `/prix?date=YYYY-MM-DD` | Historical price for a specific date |
 | `GET` | `/regions` | Live price by Quebec administrative region |
 | `GET` | `/regions/stats` | Province-wide and per-region price today, yesterday, 7-day and 30-day averages (`?carburant=Régulier\|Super\|Diesel`) |
-| `GET` | `/stations` | Station directory (id, name, brand, address, region, coordinates) |
+| `GET` | `/stations` | Station directory (id, name, brand, address, region, coordinates); `?stats=true` adds all three fuels' stats |
 | `GET` | `/stations/{id}` | Per-station price today, yesterday average, 7-day and 30-day averages, plus 31-day history (`?carburant=`) |
 | `GET` | `/stations/stats?adresse=` | Same, looked up by the station address used in the Régie feed |
 | `GET` | `/graphique?date_debut=YYYY-MM-DD` | Historical data since a start date |

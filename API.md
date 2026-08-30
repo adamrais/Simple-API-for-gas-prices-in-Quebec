@@ -174,6 +174,7 @@ Liste des stations, **sans prix** — sert à découvrir les identifiants à pas
 | Paramètre | Type | Description |
 |-----------|------|-------------|
 | `region` | string | Filtre optionnel (ex: `?region=Montréal`) |
+| `stats` | bool | `true` ajoute les 4 statistiques pour les trois carburants |
 
 **Réponse :**
 ```json
@@ -192,7 +193,35 @@ Liste des stations, **sans prix** — sert à découvrir les identifiants à pas
 }
 ```
 
-> La liste complète pèse ~409 Ko (2 451 stations). Utilisez `?region=` pour la réduire — Montréal ne fait que 36 Ko. Mise en cache 24 h (`Cache-Control`), les métadonnées de station changent rarement.
+> La liste complète pèse ~409 Ko (~82 Ko compressés). Utilisez `?region=` pour la réduire — Montréal ne fait que 36 Ko. Mise en cache 24 h, les métadonnées de station changent rarement.
+
+### Avec `?stats=true`
+
+Ajoute un objet `carburants` à chaque station — les quatre statistiques pour l'ordinaire, le super et le diesel, en une seule requête :
+
+```json
+{
+  "stations": [
+    {
+      "id": 63,
+      "nom": "MIGIZY ODENAW INC",
+      "adresse": "1 Ogima, Kipawa",
+      "region": "Abitibi-Témiscamingue",
+      "lat": 46.786974,
+      "lon": -78.981912,
+      "carburants": {
+        "Régulier": { "aujourd_hui": 186.9, "hier": 186.4, "moyenne_7j": 185.1, "moyenne_30j": 183.8 },
+        "Super":    { "aujourd_hui": 213.9, "hier": 213.5, "moyenne_7j": 212.0, "moyenne_30j": 210.4 },
+        "Diesel":   { "aujourd_hui": null,  "hier": null,  "moyenne_7j": null,  "moyenne_30j": null }
+      }
+    }
+  ]
+}
+```
+
+Les 2 465 stations pèsent ~1,06 Mo brut, **~111 Ko compressés**, servis en ~60 ms. Combinez avec `?region=` pour n'en obtenir qu'une partie (Montréal : ~9 Ko compressés). Mise en cache pour la durée de l'intervalle d'échantillonnage.
+
+Une station qui ne vend pas un carburant renvoie ses quatre champs à `null` — c'est le cas de ~460 stations pour le diesel.
 
 ---
 
