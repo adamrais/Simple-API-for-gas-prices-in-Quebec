@@ -84,6 +84,15 @@
         font-weight: bold;
       }
       tbody tr:nth-child(even) { background-color: #f4f7fc; }
+      #corps-quebec td {
+        background-color: #003DA5;
+        color: white;
+        font-weight: bold;
+        border-color: #003DA5;
+      }
+      #corps-quebec td.region { color: white; }
+      #corps-quebec .hausse { color: #ffb3ab; }
+      #corps-quebec .baisse { color: #a8f0c6; }
       .hausse { color: #e74c3c; }
       .baisse { color: #2ecc71; }
       #maj {
@@ -124,11 +133,16 @@
               <th data-cle="moyenne_30j">Moyenne 30 j <span class="fleche"></span></th>
             </tr>
           </thead>
+          <tbody id="corps-quebec"></tbody>
           <tbody id="corps">
             <tr><td colspan="5" style="padding: 20px;">Chargement...</td></tr>
           </tbody>
         </table>
       </div>
+
+      <p style="font-size: 14px; color: #666; max-width: 900px; margin: 16px auto 0; text-align: left; padding: 0 4px;">
+        La ligne <strong>Québec</strong> est la moyenne de toutes les stations de la province : les régions comptant le plus de stations y pèsent davantage. Elle diffère donc de la moyenne arithmétique des 18 lignes régionales, qui accorde le même poids à chaque région.
+      </p>
 
       <p id="maj">Chargement...</p>
     </main>
@@ -158,6 +172,16 @@
         return "";
       }
 
+      function ligneHtml(nom, l, classeNom) {
+        return `<tr>
+            <td class="region ${classeNom || ''}">${nom}</td>
+            <td class="${classeEcart(l.aujourd_hui, l.hier)}">${fmt(l.aujourd_hui)}</td>
+            <td>${fmt(l.hier)}</td>
+            <td>${fmt(l.moyenne_7j)}</td>
+            <td>${fmt(l.moyenne_30j)}</td>
+          </tr>`;
+      }
+
       function rendre() {
         lignes.sort((a, b) => {
           let x = a[triCle], y = b[triCle];
@@ -172,14 +196,8 @@
           th.querySelector(".fleche").textContent = actif ? (triAsc ? "▲" : "▼") : "";
         });
 
-        document.getElementById("corps").innerHTML = lignes.map(l => `
-          <tr>
-            <td class="region">${l.region}</td>
-            <td class="${classeEcart(l.aujourd_hui, l.hier)}">${fmt(l.aujourd_hui)}</td>
-            <td>${fmt(l.hier)}</td>
-            <td>${fmt(l.moyenne_7j)}</td>
-            <td>${fmt(l.moyenne_30j)}</td>
-          </tr>`).join("");
+        document.getElementById("corps").innerHTML =
+          lignes.map(l => ligneHtml(l.region, l)).join("");
       }
 
       document.querySelectorAll("#entetes th").forEach(th => {
@@ -194,7 +212,11 @@
       fetch("https://proessence.up.railway.app/regions/stats")
         .then(r => r.json())
         .then(data => {
-          lignes = Object.entries(data.regions).map(([region, v]) => ({ region, ...v }));
+          lignes = data.regions;
+          if (data.quebec) {
+            document.getElementById("corps-quebec").innerHTML =
+              ligneHtml("Québec (toutes stations)", data.quebec);
+          }
           rendre();
           document.getElementById("maj").textContent = "Données du " + data.date + " — source : Régie de l'énergie du Québec";
         })

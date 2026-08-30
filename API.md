@@ -105,38 +105,54 @@ Prix moyen actuel par région administrative du Québec (données temps réel de
 
 ## GET `/regions/stats`
 
-Statistiques par région administrative : prix du jour, de la veille, et moyennes sur 7 et 30 jours. Calculé à partir de l'historique enregistré (aucun appel externe).
+Statistiques pour l'ensemble du Québec et par région administrative : prix du jour, de la veille, et moyennes sur 7 et 30 jours. Calculé à partir de l'historique enregistré (aucun appel externe — réponse en quelques millisecondes).
 
 **Réponse :**
 ```json
 {
   "date": "2026-08-30",
-  "regions": {
-    "Montréal": {
-      "aujourd_hui": 198.6,
-      "hier": 194.0,
-      "moyenne_7j": 191.4,
-      "moyenne_30j": 185.1
+  "quebec": {
+    "aujourd_hui": 185.2,
+    "hier": 184.4,
+    "moyenne_7j": 183.4,
+    "moyenne_30j": 181.3
+  },
+  "regions": [
+    {
+      "region": "Abitibi-Témiscamingue",
+      "aujourd_hui": 187.0,
+      "hier": 186.7,
+      "moyenne_7j": 185.6,
+      "moyenne_30j": 184.0
     },
-    "Outaouais": {
-      "aujourd_hui": 174.6,
-      "hier": 175.3,
-      "moyenne_7j": 174.7,
-      "moyenne_30j": 173.3
+    {
+      "region": "Bas-Saint-Laurent",
+      "aujourd_hui": 184.2,
+      "hier": 184.3,
+      "moyenne_7j": 184.0,
+      "moyenne_30j": 184.3
     }
-  }
+  ]
 }
 ```
 
 | Champ | Type | Description |
 |-------|------|-------------|
 | `date` | string | Date du jour (`YYYY-MM-DD`), fuseau America/Montreal |
+| `quebec` | object | Mêmes quatre champs, pour l'ensemble de la province |
+| `region` | string | Nom de la région administrative |
 | `aujourd_hui` | float \| null | Prix moyen enregistré aujourd'hui |
 | `hier` | float \| null | Prix moyen enregistré la veille |
 | `moyenne_7j` | float \| null | Moyenne sur la fenêtre des 7 derniers jours (aujourd'hui inclus) |
 | `moyenne_30j` | float \| null | Moyenne sur la fenêtre des 30 derniers jours (aujourd'hui inclus) |
 
-> Les moyennes portent sur les jours **réellement enregistrés** dans la fenêtre. Un champ vaut `null` si aucune donnée n'existe pour la période (ex. `aujourd_hui` avant la collecte quotidienne de 10 h 01).
+Le tableau `regions` est trié par nom de région. Les moyennes portent sur les jours **réellement enregistrés** dans la fenêtre.
+
+> **`quebec` n'est pas la moyenne du tableau `regions`.** C'est la moyenne de toutes les stations de la province, où les régions comptant le plus de stations pèsent davantage. La moyenne arithmétique des 18 valeurs régionales donne un résultat plus élevé (écart typique de 1 à 2 ¢), car elle accorde le même poids au Nord-du-Québec qu'à Montréal.
+
+> Un champ vaut `null` si aucune donnée n'existe pour la période. En pratique, `aujourd_hui` est `null` chaque matin entre minuit et la collecte quotidienne de 10 h 01 — prévoyez des types optionnels côté client.
+
+**Cache :** la réponse porte un en-tête `Cache-Control: public, max-age=N` où `N` est le nombre de secondes restant avant la prochaine collecte (10 h 02, heure de Montréal). Les clients HTTP standards (`URLSession`, navigateurs) évitent ainsi les appels redondants.
 
 ---
 
