@@ -148,7 +148,9 @@ Statistiques pour l'ensemble du Québec et par région administrative : prix du 
 
 Le tableau `regions` est trié par nom de région. Les moyennes portent sur les jours **réellement enregistrés** dans la fenêtre.
 
-> **`quebec` n'est pas la moyenne du tableau `regions`.** C'est la moyenne de toutes les stations de la province, où les régions comptant le plus de stations pèsent davantage. La moyenne arithmétique des 18 valeurs régionales donne un résultat plus élevé (écart typique de 1 à 2 ¢), car elle accorde le même poids au Nord-du-Québec qu'à Montréal.
+> **Ce sont des relevés ponctuels, pas des moyennes journalières.** Le prix provincial est capté à 10 h 00 et les prix régionaux à 10 h 01 (heure de Montréal), par deux appels distincts au flux de la Régie. `moyenne_7j` et `moyenne_30j` sont donc des moyennes de ces relevés quotidiens.
+
+> **`quebec` n'est pas la moyenne du tableau `regions`.** C'est la moyenne de toutes les stations de la province (~2 450), où les régions comptant le plus de stations pèsent davantage. La moyenne arithmétique des 18 valeurs régionales donne un résultat plus élevé — écart mesuré de 1,5 ¢ sur un instantané unique — car elle accorde le même poids à `Municipalités hors MRC \ CMM` (1 station) qu'à la Montérégie (380 stations).
 
 > Un champ vaut `null` si aucune donnée n'existe pour la période. En pratique, `aujourd_hui` est `null` chaque matin entre minuit et la collecte quotidienne de 10 h 01 — prévoyez des types optionnels côté client.
 
