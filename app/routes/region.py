@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from app.services.regie import get_prix_par_region
 from app.services.stations_db import (
-    get_stats_regions_db, get_stats_quebec_db, INTERVALLE_MINUTES,
+    get_stats_regions_db, get_stats_quebec_db,
+    INTERVALLE_MINUTES, CARBURANTS, CARBURANT_DEFAUT,
 )
 
 _TZ = ZoneInfo("America/Montreal")
@@ -33,10 +34,13 @@ def regions():
 
 
 @router.get("/regions/stats")
-def regions_stats(response: Response):
+def regions_stats(response: Response, carburant: str = Query(CARBURANT_DEFAUT)):
+    if carburant not in CARBURANTS:
+        raise HTTPException(400, detail=f"Carburant inconnu. Valeurs acceptées: {list(CARBURANTS)}")
     response.headers["Cache-Control"] = f"public, max-age={_max_age()}"
     return {
         "date": str(_today()),
-        "quebec": get_stats_quebec_db(),
-        "regions": get_stats_regions_db(),
+        "carburant": carburant,
+        "quebec": get_stats_quebec_db(carburant),
+        "regions": get_stats_regions_db(carburant),
     }

@@ -10,6 +10,7 @@ A REST API that provides real-time and historical regular gasoline prices across
 ## Features
 
 - **Live price** — current average price at the pump across Quebec
+- **Three fuel grades** — regular, super and diesel, sampled every 30 minutes across ~2,450 stations
 - **Regional breakdown** — average price per administrative region
 - **Historical data** — daily average prices going back months
 - **Price prediction** — ML-based forecast for today and the next N days (optimistic / average / pessimistic bands), driven by WTI crude and USD/CAD trends
@@ -26,9 +27,9 @@ All prices are in **¢/L** (cents per litre).
 | `GET` | `/predict/futur?jours=7` | Multi-day forecast |
 | `GET` | `/prix?date=YYYY-MM-DD` | Historical price for a specific date |
 | `GET` | `/regions` | Live price by Quebec administrative region |
-| `GET` | `/regions/stats` | Province-wide and per-region price today, yesterday, 7-day and 30-day averages |
+| `GET` | `/regions/stats` | Province-wide and per-region price today, yesterday, 7-day and 30-day averages (`?carburant=Régulier\|Super\|Diesel`) |
 | `GET` | `/stations` | Station directory (id, name, brand, address, region, coordinates) |
-| `GET` | `/stations/{id}` | Per-station price today, yesterday average, 7-day and 30-day averages, plus 31-day history |
+| `GET` | `/stations/{id}` | Per-station price today, yesterday average, 7-day and 30-day averages, plus 31-day history (`?carburant=`) |
 | `GET` | `/stations/stats?adresse=` | Same, looked up by the station address used in the Régie feed |
 | `GET` | `/graphique?date_debut=YYYY-MM-DD` | Historical data since a start date |
 

@@ -107,10 +107,14 @@ Prix moyen actuel par région administrative du Québec (données temps réel de
 
 Statistiques pour l'ensemble du Québec et par région administrative : prix du jour, de la veille, et moyennes sur 7 et 30 jours. Agrégé depuis les relevés station effectués toutes les 30 minutes (base SQLite, aucun appel externe).
 
+**Carburant :** ajoutez `?carburant=Super` ou `?carburant=Diesel` pour changer de carburant. Valeurs acceptées : `Régulier` (défaut), `Super`, `Diesel` — toute autre valeur renvoie `400`. Le diesel n'est vendu que par ~2 000 des ~2 450 stations ; une station qui ne le vend pas renvoie `null` et un historique vide.
+
+
 **Réponse :**
 ```json
 {
   "date": "2026-08-30",
+  "carburant": "Régulier",
   "quebec": {
     "aujourd_hui": 185.2,
     "hier": 184.4,
@@ -139,6 +143,7 @@ Statistiques pour l'ensemble du Québec et par région administrative : prix du 
 | Champ | Type | Description |
 |-------|------|-------------|
 | `date` | string | Date du jour (`YYYY-MM-DD`), fuseau America/Montreal |
+| `carburant` | string | Carburant demandé (`Régulier`, `Super` ou `Diesel`) |
 | `quebec` | object | Mêmes quatre champs, pour l'ensemble de la province |
 | `region` | string | Nom de la région administrative |
 | `aujourd_hui` | float \| null | Prix moyen enregistré aujourd'hui |
@@ -200,6 +205,7 @@ Identique à `/stations/{id}`, mais retrouve la station par son **adresse** — 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
 | `adresse` | string | Adresse exacte, telle qu'écrite dans le flux (ex: `?adresse=1 Ogima, Kipawa`) |
+| `carburant` | string | `Régulier` (défaut), `Super` ou `Diesel` |
 
 L'adresse doit correspondre au caractère près. Retourne `404` si elle est inconnue — ce qui arrive normalement pour une station apparue dans le flux depuis le dernier relevé : prévoyez d'afficher « pas encore d'historique » plutôt qu'une erreur.
 
@@ -208,6 +214,9 @@ L'adresse doit correspondre au caractère près. Retourne `404` si elle est inco
 ## GET `/stations/{id}`
 
 Prix du jour, moyenne de la veille, moyennes 7 et 30 jours, et historique quotidien complet pour une station.
+
+**Carburant :** ajoutez `?carburant=Super` ou `?carburant=Diesel` pour changer de carburant. Valeurs acceptées : `Régulier` (défaut), `Super`, `Diesel` — toute autre valeur renvoie `400`. Le diesel n'est vendu que par ~2 000 des ~2 450 stations ; une station qui ne le vend pas renvoie `null` et un historique vide.
+
 
 **Réponse :**
 ```json
@@ -219,6 +228,7 @@ Prix du jour, moyenne de la veille, moyennes 7 et 30 jours, et historique quotid
   "region": "Abitibi-Témiscamingue",
   "lat": 46.786974,
   "lon": -78.981912,
+  "carburant": "Régulier",
   "aujourd_hui": 186.9,
   "hier": 185.4,
   "moyenne_7j": 184.2,

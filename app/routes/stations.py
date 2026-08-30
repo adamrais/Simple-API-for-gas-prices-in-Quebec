@@ -2,13 +2,20 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Response, Query
 from app.services.stations_db import (
-    get_stations, get_station, get_station_par_adresse, INTERVALLE_MINUTES,
+    get_stations, get_station, get_station_par_adresse,
+    INTERVALLE_MINUTES, CARBURANTS, CARBURANT_DEFAUT,
 )
 
 router = APIRouter()
 
 _CACHE_LISTE = 86400              # les métadonnées de station bougent rarement
 _CACHE_STATION = INTERVALLE_MINUTES * 60
+
+
+def _valider(carburant):
+    if carburant not in CARBURANTS:
+        raise HTTPException(400, detail=f"Carburant inconnu. Valeurs acceptées: {list(CARBURANTS)}")
+    return carburant
 
 
 @router.get("/stations")
@@ -25,9 +32,10 @@ def stations(response: Response, region: Optional[str] = Query(None)):
 
 
 @router.get("/stations/stats")
-def station_par_adresse(adresse: str, response: Response):
+def station_par_adresse(adresse: str, response: Response,
+                        carburant: str = Query(CARBURANT_DEFAUT)):
     """Mêmes statistiques, retrouvées par l'adresse exacte du flux de la Régie."""
-    s = get_station_par_adresse(adresse)
+    s = get_station_par_adresse(adresse, _valider(carburant))
     if s is None:
         raise HTTPException(404, detail="Adresse introuvable")
     response.headers["Cache-Control"] = f"public, max-age={_CACHE_STATION}"
@@ -35,9 +43,10 @@ def station_par_adresse(adresse: str, response: Response):
 
 
 @router.get("/stations/{station_id}")
-def station(station_id: int, response: Response):
+def station(station_id: int, response: Response,
+            carburant: str = Query(CARBURANT_DEFAUT)):
     """Prix du jour, moyenne de la veille, moyennes 7 et 30 jours, et historique."""
-    s = get_station(station_id)
+    s = get_station(station_id, _valider(carburant))
     if s is None:
         raise HTTPException(404, detail="Station introuvable")
     response.headers["Cache-Control"] = f"public, max-age={_CACHE_STATION}"

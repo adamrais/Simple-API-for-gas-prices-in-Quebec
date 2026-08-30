@@ -9,6 +9,8 @@ from app.services.regie import _fetch_stations
 
 RETENTION_JOURS = 31
 INTERVALLE_MINUTES = 30
+CARBURANTS = ("Régulier", "Super", "Diesel")
+CARBURANT_DEFAUT = "Régulier"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS stations (
@@ -23,27 +25,31 @@ CREATE TABLE IF NOT EXISTS stations (
 
 CREATE TABLE IF NOT EXISTS prix_jour (
     station_id INTEGER NOT NULL REFERENCES stations(id),
+    carburant  TEXT NOT NULL,
     date       TEXT NOT NULL,
     somme      REAL NOT NULL,
     n          INTEGER NOT NULL,
     prix_min   REAL NOT NULL,
     prix_max   REAL NOT NULL,
     dernier    REAL NOT NULL,
-    PRIMARY KEY (station_id, date)
+    PRIMARY KEY (station_id, carburant, date)
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS prix_jour_region (
-    region TEXT NOT NULL,
-    date   TEXT NOT NULL,
-    somme  REAL NOT NULL,
-    n      INTEGER NOT NULL,
-    PRIMARY KEY (region, date)
+    region    TEXT NOT NULL,
+    carburant TEXT NOT NULL,
+    date      TEXT NOT NULL,
+    somme     REAL NOT NULL,
+    n         INTEGER NOT NULL,
+    PRIMARY KEY (region, carburant, date)
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS prix_jour_quebec (
-    date  TEXT PRIMARY KEY,
-    somme REAL NOT NULL,
-    n     INTEGER NOT NULL
+    carburant TEXT NOT NULL,
+    date      TEXT NOT NULL,
+    somme     REAL NOT NULL,
+    n         INTEGER NOT NULL,
+    PRIMARY KEY (carburant, date)
 ) WITHOUT ROWID;
 
 CREATE INDEX IF NOT EXISTS idx_prix_jour_date ON prix_jour(date);
@@ -65,41 +71,75 @@ def _connect():
     return conn
 
 
+_MIGRATION = """
+ALTER TABLE prix_jour        RENAME TO _old_pj;
+ALTER TABLE prix_jour_region RENAME TO _old_pjr;
+ALTER TABLE prix_jour_quebec RENAME TO _old_pjq;
+"""
+
+_MIGRATION_COPIE = """
+INSERT INTO prix_jour SELECT station_id, 'Régulier', date, somme, n, prix_min, prix_max, dernier FROM _old_pj;
+INSERT INTO prix_jour_region SELECT region, 'Régulier', date, somme, n FROM _old_pjr;
+INSERT INTO prix_jour_quebec SELECT 'Régulier', date, somme, n FROM _old_pjq;
+DROP TABLE _old_pj;
+DROP TABLE _old_pjr;
+DROP TABLE _old_pjq;
+"""
+
+
 def init_db():
+    """Crée le schéma, et migre une base antérieure à l'ajout des carburants."""
     with _connect() as conn:
         conn.executescript(_SCHEMA)
+        colonnes = {r[1] for r in conn.execute("PRAGMA table_info(prix_jour)")}
+        if "carburant" in colonnes:
+            return
+    # Base à l'ancien format : tout ce qui existe est du Régulier.
+    conn = sqlite3.connect(STATIONS_DB_PATH, timeout=30)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.executescript(_MIGRATION)
+        conn.executescript(_SCHEMA)
+        conn.executescript(_MIGRATION_COPIE)
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def _prix_reguliers(data):
+def _prix_carburants(data):
+    """Un enregistrement par (station, carburant) disponible."""
     for f in data["features"]:
         props = f["properties"]
         adresse = props.get("Address")
         if not adresse:
             continue
+        coords = (f.get("geometry") or {}).get("coordinates") or [None, None]
         for p in props.get("Prices", []):
-            if p.get("GasType") == "Régulier" and p.get("IsAvailable"):
-                try:
-                    prix = float(p["Price"].replace("¢", ""))
-                except (KeyError, ValueError):
-                    break
-                coords = (f.get("geometry") or {}).get("coordinates") or [None, None]
-                yield {
-                    "adresse": adresse,
-                    "nom": props.get("Name"),
-                    "marque": props.get("brand"),
-                    "region": props.get("Region"),
-                    "lon": coords[0],
-                    "lat": coords[1],
-                    "prix": prix,
-                }
-                break
+            carburant = p.get("GasType")
+            if carburant not in CARBURANTS or not p.get("IsAvailable"):
+                continue
+            try:
+                prix = float(p["Price"].replace("¢", ""))
+            except (KeyError, ValueError):
+                continue
+            yield {
+                "adresse": adresse,
+                "nom": props.get("Name"),
+                "marque": props.get("brand"),
+                "region": props.get("Region"),
+                "lon": coords[0],
+                "lat": coords[1],
+                "carburant": carburant,
+                "prix": prix,
+            }
 
 
 def enregistrer_releve(data=None):
     """Échantillonne le flux et met à jour l'agrégat du jour. Retourne le nombre de stations."""
     if data is None:
         data = _fetch_stations()
-    releves = list(_prix_reguliers(data))
+    releves = list(_prix_carburants(data))
     if not releves:
         return 0
 
@@ -115,32 +155,36 @@ def enregistrer_releve(data=None):
         )
         ids = {a: i for i, a in conn.execute("SELECT id, adresse FROM stations")}
         conn.executemany(
-            """INSERT INTO prix_jour (station_id, date, somme, n, prix_min, prix_max, dernier)
-               VALUES (?, ?, ?, 1, ?, ?, ?)
-               ON CONFLICT(station_id, date) DO UPDATE SET
+            """INSERT INTO prix_jour (station_id, carburant, date, somme, n, prix_min, prix_max, dernier)
+               VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+               ON CONFLICT(station_id, carburant, date) DO UPDATE SET
                  somme    = somme + excluded.somme,
                  n        = n + 1,
                  prix_min = MIN(prix_min, excluded.prix_min),
                  prix_max = MAX(prix_max, excluded.prix_max),
                  dernier  = excluded.dernier""",
-            [(ids[r["adresse"]], jour, r["prix"], r["prix"], r["prix"], r["prix"]) for r in releves],
+            [(ids[r["adresse"]], r["carburant"], jour, r["prix"], r["prix"], r["prix"], r["prix"])
+             for r in releves],
         )
 
-        # Moyenne de ce relevé par région, puis pour la province entière.
+        # Moyenne de ce relevé par (région, carburant), puis par carburant pour la province.
         par_region = defaultdict(list)
+        par_carburant = defaultdict(list)
         for r in releves:
+            par_carburant[r["carburant"]].append(r["prix"])
             if r["region"]:
-                par_region[r["region"]].append(r["prix"])
+                par_region[(r["region"], r["carburant"])].append(r["prix"])
         conn.executemany(
-            """INSERT INTO prix_jour_region (region, date, somme, n) VALUES (?, ?, ?, 1)
-               ON CONFLICT(region, date) DO UPDATE SET somme = somme + excluded.somme, n = n + 1""",
-            [(reg, jour, sum(v) / len(v)) for reg, v in par_region.items()],
+            """INSERT INTO prix_jour_region (region, carburant, date, somme, n) VALUES (?, ?, ?, ?, 1)
+               ON CONFLICT(region, carburant, date) DO UPDATE SET
+                 somme = somme + excluded.somme, n = n + 1""",
+            [(reg, carb, jour, sum(v) / len(v)) for (reg, carb), v in par_region.items()],
         )
-        tous = [r["prix"] for r in releves]
-        conn.execute(
-            """INSERT INTO prix_jour_quebec (date, somme, n) VALUES (?, ?, 1)
-               ON CONFLICT(date) DO UPDATE SET somme = somme + excluded.somme, n = n + 1""",
-            (jour, sum(tous) / len(tous)),
+        conn.executemany(
+            """INSERT INTO prix_jour_quebec (carburant, date, somme, n) VALUES (?, ?, ?, 1)
+               ON CONFLICT(carburant, date) DO UPDATE SET
+                 somme = somme + excluded.somme, n = n + 1""",
+            [(carb, jour, sum(v) / len(v)) for carb, v in par_carburant.items()],
         )
     return len(releves)
 
@@ -153,13 +197,14 @@ def elaguer(jours=RETENTION_JOURS):
     return n
 
 
-def _moyenne(conn, station_id, jours, today):
+def _moyenne(conn, station_id, carburant, jours, today):
+    """Moyenne des moyennes quotidiennes — chaque jour compte pareil."""
     debut = str(today - timedelta(days=jours - 1))
     r = conn.execute(
-        "SELECT SUM(somme) s, SUM(n) n FROM prix_jour WHERE station_id=? AND date>=?",
-        (station_id, debut),
+        "SELECT AVG(somme / n) m FROM prix_jour WHERE station_id=? AND carburant=? AND date>=?",
+        (station_id, carburant, debut),
     ).fetchone()
-    return round(r["s"] / r["n"], 1) if r and r["n"] else None
+    return round(r["m"], 1) if r and r["m"] is not None else None
 
 
 def get_stations():
@@ -169,15 +214,15 @@ def get_stations():
             "SELECT id, nom, marque, adresse, region, lat, lon FROM stations ORDER BY region, adresse")]
 
 
-def get_station_par_adresse(adresse):
+def get_station_par_adresse(adresse, carburant=CARBURANT_DEFAUT):
     """Même chose que get_station, mais par l'adresse — la clé fournie par le flux de la Régie."""
     with _connect() as conn:
         r = conn.execute("SELECT id FROM stations WHERE adresse=?", (adresse,)).fetchone()
-    return get_station(r["id"]) if r else None
+    return get_station(r["id"], carburant) if r else None
 
 
-def get_station(station_id):
-    """Les 4 statistiques d'une station, plus son historique quotidien."""
+def get_station(station_id, carburant=CARBURANT_DEFAUT):
+    """Les 4 statistiques d'une station pour un carburant, plus son historique quotidien."""
     with _connect() as conn:
         st = conn.execute(
             "SELECT id, nom, marque, adresse, region, lat, lon FROM stations WHERE id=?",
@@ -190,8 +235,8 @@ def get_station(station_id):
         hier = str(today - timedelta(days=1))
         lignes = conn.execute(
             """SELECT date, somme, n, prix_min, prix_max, dernier
-               FROM prix_jour WHERE station_id=? ORDER BY date""",
-            (station_id,),
+               FROM prix_jour WHERE station_id=? AND carburant=? ORDER BY date""",
+            (station_id, carburant),
         ).fetchall()
 
         par_date = {l["date"]: l for l in lignes}
@@ -200,10 +245,11 @@ def get_station(station_id):
 
         return {
             **dict(st),
+            "carburant": carburant,
             "aujourd_hui": aujourdhui["dernier"] if aujourdhui else None,
             "hier": round(veille["somme"] / veille["n"], 1) if veille else None,
-            "moyenne_7j": _moyenne(conn, station_id, 7, today),
-            "moyenne_30j": _moyenne(conn, station_id, 30, today),
+            "moyenne_7j": _moyenne(conn, station_id, carburant, 7, today),
+            "moyenne_30j": _moyenne(conn, station_id, carburant, 30, today),
             "historique": [
                 {
                     "date": l["date"],
@@ -235,31 +281,34 @@ def _valeur_jour(conn, table, ou, params, jour):
     return round(r["v"], 1) if r else None
 
 
-def get_stats_regions_db():
+def get_stats_regions_db(carburant=CARBURANT_DEFAUT):
     today = _today()
     hier = str(today - timedelta(days=1))
+    ou = "region=? AND carburant=?"
     with _connect() as conn:
         regions = [r["region"] for r in conn.execute(
-            "SELECT DISTINCT region FROM prix_jour_region ORDER BY region")]
+            "SELECT DISTINCT region FROM prix_jour_region WHERE carburant=? ORDER BY region",
+            (carburant,))]
         return [
             {
                 "region": reg,
-                "aujourd_hui": _valeur_jour(conn, "prix_jour_region", "region=?", (reg,), str(today)),
-                "hier": _valeur_jour(conn, "prix_jour_region", "region=?", (reg,), hier),
-                "moyenne_7j": _moyenne_jours(conn, "prix_jour_region", "region=?", (reg,), 7, today),
-                "moyenne_30j": _moyenne_jours(conn, "prix_jour_region", "region=?", (reg,), 30, today),
+                "aujourd_hui": _valeur_jour(conn, "prix_jour_region", ou, (reg, carburant), str(today)),
+                "hier": _valeur_jour(conn, "prix_jour_region", ou, (reg, carburant), hier),
+                "moyenne_7j": _moyenne_jours(conn, "prix_jour_region", ou, (reg, carburant), 7, today),
+                "moyenne_30j": _moyenne_jours(conn, "prix_jour_region", ou, (reg, carburant), 30, today),
             }
             for reg in regions
         ]
 
 
-def get_stats_quebec_db():
+def get_stats_quebec_db(carburant=CARBURANT_DEFAUT):
     today = _today()
     hier = str(today - timedelta(days=1))
+    ou, prm = "carburant=?", (carburant,)
     with _connect() as conn:
         return {
-            "aujourd_hui": _valeur_jour(conn, "prix_jour_quebec", "1=1", (), str(today)),
-            "hier": _valeur_jour(conn, "prix_jour_quebec", "1=1", (), hier),
-            "moyenne_7j": _moyenne_jours(conn, "prix_jour_quebec", "1=1", (), 7, today),
-            "moyenne_30j": _moyenne_jours(conn, "prix_jour_quebec", "1=1", (), 30, today),
+            "aujourd_hui": _valeur_jour(conn, "prix_jour_quebec", ou, prm, str(today)),
+            "hier": _valeur_jour(conn, "prix_jour_quebec", ou, prm, hier),
+            "moyenne_7j": _moyenne_jours(conn, "prix_jour_quebec", ou, prm, 7, today),
+            "moyenne_30j": _moyenne_jours(conn, "prix_jour_quebec", ou, prm, 30, today),
         }
