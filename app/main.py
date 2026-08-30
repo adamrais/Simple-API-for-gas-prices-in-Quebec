@@ -11,6 +11,7 @@ from app.routes.predict import router as predict_router
 from app.routes.prix import router as prix_router
 from app.routes.region import router as region_router
 from app.routes.graphique import router as graphique_router
+from app.routes.stations import router as stations_router
 from app.config import CSV_PATH, CSV_REGIONS_PATH
 
 logging.basicConfig(level=logging.INFO)
@@ -81,6 +82,26 @@ def _save_daily_regions():
     logger.info(f"[scheduler] Saved prices for {len(regions)} regions on {today}")
 
 
+def _echantillonner_stations():
+    from app.services.stations_db import enregistrer_releve
+    try:
+        n = enregistrer_releve()
+    except Exception as e:
+        logger.error(f"[scheduler] Échantillonnage stations échoué: {e}")
+        return
+    logger.info(f"[scheduler] Relevé enregistré pour {n} stations")
+
+
+def _elaguer_stations():
+    from app.services.stations_db import elaguer, RETENTION_JOURS
+    try:
+        n = elaguer()
+    except Exception as e:
+        logger.error(f"[scheduler] Élagage stations échoué: {e}")
+        return
+    logger.info(f"[scheduler] Élagage: {n} lignes supprimées (rétention {RETENTION_JOURS} jours)")
+
+
 def _trigger_github_sync():
     import requests
     token = os.environ.get("GITHUB_SYNC_TOKEN")
@@ -138,14 +159,24 @@ def _save_if_missing_today_regions():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_csv()
+    from app.services.stations_db import init_db, INTERVALLE_MINUTES
+    init_db()
     _save_if_missing_today()
     _save_if_missing_today_regions()
     scheduler = BackgroundScheduler()
     scheduler.add_job(_save_daily_price, CronTrigger(hour=10, minute=0, timezone="America/Montreal"))
     scheduler.add_job(_save_daily_regions, CronTrigger(hour=10, minute=1, timezone="America/Montreal"))
     scheduler.add_job(_trigger_github_sync, CronTrigger(hour=10, minute=5, timezone="America/Montreal"))
+    scheduler.add_job(_echantillonner_stations,
+                      CronTrigger(minute=f"*/{INTERVALLE_MINUTES}", timezone="America/Montreal"))
+    scheduler.add_job(_elaguer_stations, CronTrigger(hour=3, minute=30, timezone="America/Montreal"))
     scheduler.start()
-    logger.info("[scheduler] Started — daily price jobs at 10:00/10:01, CSV backup trigger at 10:05 America/Montreal")
+    # Premier relevé hors du thread principal : ne retarde pas la disponibilité
+    # de l'app au démarrage (le redéploiement Railway est déjà une fenêtre 502).
+    scheduler.add_job(_echantillonner_stations)
+    logger.info(
+        "[scheduler] Started — daily price jobs at 10:00/10:01, CSV backup trigger at 10:05, "
+        f"stations sampled every {INTERVALLE_MINUTES} min, pruning at 03:30 America/Montreal")
     yield
     scheduler.shutdown()
 
@@ -163,6 +194,7 @@ app.include_router(predict_router)
 app.include_router(prix_router)
 app.include_router(region_router)
 app.include_router(graphique_router)
+app.include_router(stations_router)
 
 app.mount("/static", StaticFiles(directory="docs/static"), name="static")
 app.mount("/", StaticFiles(directory="docs", html=True), name="templates")

@@ -1,0 +1,9 @@
+# Base SQLite des prix par station — vit sur le volume Railway (/data),
+# rétention de 31 jours, jamais versionnée.
+data/stations.db
+data/stations.db-wal
+data/stations.db-shm
+
+__pycache__/
+*.pyc
+.DS_Store

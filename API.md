@@ -158,6 +158,78 @@ Le tableau `regions` est trié par nom de région. Les moyennes portent sur les 
 
 ---
 
+## GET `/stations`
+
+Liste des stations, **sans prix** — sert à découvrir les identifiants à passer à `/stations/{id}`.
+
+**Paramètres :**
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `region` | string | Filtre optionnel (ex: `?region=Montréal`) |
+
+**Réponse :**
+```json
+{
+  "stations": [
+    {
+      "id": 63,
+      "nom": "MIGIZY ODENAW INC",
+      "marque": "Crevier",
+      "adresse": "1 Ogima, Kipawa",
+      "region": "Abitibi-Témiscamingue",
+      "lat": 46.786974,
+      "lon": -78.981912
+    }
+  ]
+}
+```
+
+> La liste complète pèse ~409 Ko (2 451 stations). Utilisez `?region=` pour la réduire — Montréal ne fait que 36 Ko. Mise en cache 24 h (`Cache-Control`), les métadonnées de station changent rarement.
+
+---
+
+## GET `/stations/{id}`
+
+Prix du jour, moyenne de la veille, moyennes 7 et 30 jours, et historique quotidien complet pour une station.
+
+**Réponse :**
+```json
+{
+  "id": 63,
+  "nom": "MIGIZY ODENAW INC",
+  "marque": "Crevier",
+  "adresse": "1 Ogima, Kipawa",
+  "region": "Abitibi-Témiscamingue",
+  "lat": 46.786974,
+  "lon": -78.981912,
+  "aujourd_hui": 186.9,
+  "hier": 185.4,
+  "moyenne_7j": 184.2,
+  "moyenne_30j": 182.0,
+  "historique": [
+    { "date": "2026-08-29", "moyenne": 185.4, "min": 184.9, "max": 186.9, "dernier": 185.9, "releves": 48 }
+  ]
+}
+```
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `aujourd_hui` | float \| null | **Dernier relevé** du jour (pas une moyenne) |
+| `hier` | float \| null | **Moyenne** de tous les relevés de la veille |
+| `moyenne_7j` | float \| null | Moyenne pondérée sur 7 jours (pondérée par le nombre de relevés) |
+| `moyenne_30j` | float \| null | Moyenne pondérée sur 30 jours |
+| `historique` | array | Un objet par jour conservé, du plus ancien au plus récent |
+| `historique[].releves` | int | Nombre d'échantillons ce jour-là |
+
+**Rétention : 31 jours.** Les jours plus anciens sont supprimés chaque nuit à 3 h 30. C'est exactement ce qu'il faut pour que `moyenne_30j` reste calculable.
+
+**Démarrage à froid :** `hier`, `moyenne_7j` et `moyenne_30j` se remplissent progressivement — il faut 30 jours de collecte avant que `moyenne_30j` soit pleine. `null` tant qu'aucune donnée n'existe.
+
+Retourne `404` si l'identifiant est inconnu. Mise en cache pour la durée de l'intervalle d'échantillonnage.
+
+---
+
 ## GET `/prix`
 
 Prix moyen historique enregistré pour une date précise.
