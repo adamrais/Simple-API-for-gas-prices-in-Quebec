@@ -13,6 +13,7 @@ from app.routes.prix import router as prix_router
 from app.routes.region import router as region_router
 from app.routes.graphique import router as graphique_router
 from app.routes.stations import router as stations_router
+from app.routes.sante import router as sante_router
 from app.config import CSV_PATH, CSV_REGIONS_PATH
 
 logging.basicConfig(level=logging.INFO)
@@ -103,6 +104,18 @@ def _releve_marche():
     logger.info("[scheduler] Marché enregistré" if ok else "[scheduler] Marché indisponible")
 
 
+def _releve_marche_si_manquant():
+    from app.services.stations_db import marche_du_jour_present
+    try:
+        if marche_du_jour_present():
+            return
+    except Exception as e:
+        logger.error(f"[scheduler] Vérification marché échouée: {e}")
+        return
+    logger.info("[scheduler] Marché du jour absent au démarrage — relevé immédiat")
+    _releve_marche()
+
+
 def _elaguer_stations():
     from app.services.stations_db import elaguer, RETENTION_JOURS
     try:
@@ -178,6 +191,8 @@ async def lifespan(app: FastAPI):
         logger.error(f"[marche] Amorçage échoué: {e}")
     _save_if_missing_today()
     _save_if_missing_today_regions()
+    _elaguer_stations()
+    _releve_marche_si_manquant()
     scheduler = BackgroundScheduler()
     scheduler.add_job(_save_daily_price, CronTrigger(hour=10, minute=0, timezone="America/Montreal"))
     scheduler.add_job(_save_daily_regions, CronTrigger(hour=10, minute=1, timezone="America/Montreal"))
@@ -214,6 +229,7 @@ app.include_router(prix_router)
 app.include_router(region_router)
 app.include_router(graphique_router)
 app.include_router(stations_router)
+app.include_router(sante_router)
 
 app.mount("/static", StaticFiles(directory="docs/static"), name="static")
 app.mount("/", StaticFiles(directory="docs", html=True), name="templates")

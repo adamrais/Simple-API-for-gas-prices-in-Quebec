@@ -27,6 +27,7 @@ All prices are in **¢/L** (cents per litre).
 | `GET` | `/predict/futur?jours=7` | Multi-day forecast |
 | `GET` | `/prix?date=YYYY-MM-DD` | Historical price for a specific date |
 | `GET` | `/regions` | Live price by Quebec administrative region |
+| `GET` | `/sante` | Data freshness check; returns 503 when a source has gone stale |
 | `GET` | `/regions/stats` | Province-wide and per-region price today, yesterday, 7-day and 30-day averages (`?carburant=Régulier\|Super\|Diesel`) |
 | `GET` | `/stations` | Station directory (id, name, brand, address, region, coordinates); `?stats=true` adds all three fuels' stats |
 | `GET` | `/stations/{station_id}` | Per-station stats for all three fuels (or one via `?carburant=`), plus 31-day history |

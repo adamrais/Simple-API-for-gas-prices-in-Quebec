@@ -6,6 +6,37 @@ Tous les prix sont en **¢/L** (cents par litre).
 
 ---
 
+## GET `/sante`
+
+Fraîcheur des trois sources de données. **Renvoie `503` si l'une d'elles a décroché**, `200` sinon — de quoi brancher une surveillance externe.
+
+**Réponse :**
+```json
+{
+  "date": "2026-08-30",
+  "releves": {
+    "dernier": "2026-08-30T17:06:36-04:00",
+    "minutes_depuis": 0,
+    "a_jour": true,
+    "stations": 2465,
+    "jours_en_base": 1
+  },
+  "marche":  { "dernier": "2026-08-30", "wti": 83.4, "usdcad": 1.3909, "a_jour": true },
+  "csv":     { "prix_quotidien": "2026-08-30", "prix_quotidien_regions": "2026-08-30", "a_jour": true },
+  "ok": true
+}
+```
+
+| Source | Considérée à jour si |
+|--------|----------------------|
+| `releves` | dernier échantillonnage il y a **≤ 60 min** (deux fois l'intervalle de 30 min) |
+| `marche` | dernière cotation vieille de **≤ 4 jours** (tolérance week-ends et fériés) |
+| `csv` | les deux fichiers portent la date du jour |
+
+Sans cet endpoint, un planificateur mort passe inaperçu : l'API continue de répondre `200` en servant des données figées. `Cache-Control: no-store` — la réponse ne doit jamais être mise en cache.
+
+---
+
 ## GET `/predict`
 
 Prix moyen actuel au Québec avec données de marché et tendance.

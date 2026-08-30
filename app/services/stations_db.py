@@ -58,6 +58,11 @@ CREATE TABLE IF NOT EXISTS marche (
     usdcad REAL
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS meta (
+    cle    TEXT PRIMARY KEY,
+    valeur TEXT NOT NULL
+) WITHOUT ROWID;
+
 CREATE INDEX IF NOT EXISTS idx_prix_jour_date ON prix_jour(date);
 CREATE INDEX IF NOT EXISTS idx_stations_region ON stations(region);
 """
@@ -191,6 +196,11 @@ def enregistrer_releve(data=None):
                ON CONFLICT(carburant, date) DO UPDATE SET
                  somme = somme + excluded.somme, n = n + 1""",
             [(carb, jour, sum(v) / len(v)) for carb, v in par_carburant.items()],
+        )
+        conn.execute(
+            """INSERT INTO meta (cle, valeur) VALUES ('dernier_releve', ?)
+               ON CONFLICT(cle) DO UPDATE SET valeur = excluded.valeur""",
+            (datetime.now(ZoneInfo("America/Montreal")).isoformat(timespec="seconds"),),
         )
     return len(releves)
 
@@ -468,3 +478,64 @@ def reprendre_marche_historique(periode="2y"):
             lignes,
         )
     return len(lignes)
+
+
+def marche_du_jour_present():
+    """Y a-t-il déjà une ligne marché pour aujourd'hui ?"""
+    with _connect() as conn:
+        r = conn.execute("SELECT 1 FROM marche WHERE date = ?", (str(_today()),)).fetchone()
+    return r is not None
+
+
+def get_sante():
+    """État de fraîcheur des trois sources : relevés stations, marché, CSV quotidiens."""
+    from app.config import CSV_PATH, CSV_REGIONS_PATH
+
+    maintenant = datetime.now(ZoneInfo("America/Montreal"))
+    today = maintenant.date()
+
+    with _connect() as conn:
+        ligne = conn.execute("SELECT valeur FROM meta WHERE cle = 'dernier_releve'").fetchone()
+        dernier = ligne["valeur"] if ligne else None
+        n_stations = conn.execute("SELECT COUNT(*) FROM stations").fetchone()[0]
+        jours = conn.execute("SELECT COUNT(DISTINCT date) FROM prix_jour").fetchone()[0]
+        m = conn.execute(
+            "SELECT date, wti, usdcad FROM marche ORDER BY date DESC LIMIT 1").fetchone()
+
+    minutes = None
+    if dernier:
+        minutes = int((maintenant - datetime.fromisoformat(dernier)).total_seconds() // 60)
+
+    def dernier_csv(chemin, colonne_date=0):
+        try:
+            with open(chemin, encoding="utf-8") as f:
+                lignes = [l for l in f.read().splitlines() if l.strip()]
+            return lignes[-1].split(",")[colonne_date]
+        except Exception:
+            return None
+
+    csv_prix, csv_regions = dernier_csv(CSV_PATH), dernier_csv(CSV_REGIONS_PATH)
+    # Le marché ferme les fins de semaine et jours fériés : 4 jours de tolérance.
+    marche_ok = m is not None and (today - date.fromisoformat(m["date"])).days <= 4
+
+    return {
+        "date": str(today),
+        "releves": {
+            "dernier": dernier,
+            "minutes_depuis": minutes,
+            "a_jour": minutes is not None and minutes <= 2 * INTERVALLE_MINUTES,
+            "stations": n_stations,
+            "jours_en_base": jours,
+        },
+        "marche": {
+            "dernier": m["date"] if m else None,
+            "wti": m["wti"] if m else None,
+            "usdcad": m["usdcad"] if m else None,
+            "a_jour": marche_ok,
+        },
+        "csv": {
+            "prix_quotidien": csv_prix,
+            "prix_quotidien_regions": csv_regions,
+            "a_jour": csv_prix == str(today) and csv_regions == str(today),
+        },
+    }
